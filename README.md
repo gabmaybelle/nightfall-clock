@@ -26,7 +26,7 @@ With [Mod Menu](https://modrinth.com/mod/modmenu) installed, open Mods, pick Nig
 
 - **Clock:** on or off.
 - **Dusk Warning:** on or off.
-- **Position:** above the hotbar, or in any corner of the screen.
+- **Position:** above the hotbar, or in any corner of the screen. (Minimaps and some HUD mods use the top corners; pick one they don't.)
 - **Time Format:** 12-hour (6:00 PM), 24-hour (18:00), or Auto, which follows your computer's region settings.
 
 Without Mod Menu, the same settings are in `config/nightfallclock.properties`.
