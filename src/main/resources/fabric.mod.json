@@ -7,6 +7,11 @@
 	"authors": [
 		"Gabby"
 	],
+	"contact": {
+		"homepage": "https://github.com/gabmaybelle/nightfall-clock",
+		"sources": "https://github.com/gabmaybelle/nightfall-clock",
+		"issues": "https://github.com/gabmaybelle/nightfall-clock/issues"
+	},
 	"license": "MIT",
 	"icon": "assets/nightfallclock/icon.png",
 	"environment": "client",
