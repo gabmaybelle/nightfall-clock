@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "nightfallclock",
+	"version": "${version}",
+	"name": "Nightfall Clock",
+	"description": "A day counter and clock that follows where the sun really is, so it stays right on longer days, plus a heads-up above the hotbar when the sun starts to set.",
+	"authors": [
+		"Gabby"
+	],
+	"license": "MIT",
+	"icon": "assets/nightfallclock/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.gabbymaybelle.nightfallclock.NightfallClock"
+		],
+		"modmenu": [
+			"com.gabbymaybelle.nightfallclock.ModMenuIntegration"
+		]
+	},
+	"mixins": [
+		"nightfallclock.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"fabric-api": "*",
+		"minecraft": ">=26.2 <26.4",
+		"java": ">=25"
+	},
+	"suggests": {
+		"modmenu": "*"
+	}
+}

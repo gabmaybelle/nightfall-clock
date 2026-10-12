@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"package": "com.gabbymaybelle.nightfallclock.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"ChatComponentAccessor",
+		"HudAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
