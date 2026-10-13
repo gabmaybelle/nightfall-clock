@@ -18,7 +18,7 @@ Needs JDK 25.
 
 - `./gradlew build`: jar in `build/libs/`.
 - `./gradlew runClient`: a dev game with the mod.
-- `./gradlew runClientGameTest`: launches the game, opens a world and checks the accessors, the clock time at several `/time set` points, and the dusk warning. It needs a display. Screenshots go to `build/run/clientGameTest/screenshots/`.
+- `./gradlew runClientGameTest`: launches the game, opens a world and checks the accessors, the clock time at several `/time set` points, the dusk warning, the clock text in both formats and that there is no clock in the Nether. It needs a display. Screenshots go to `build/run/clientGameTest/screenshots/`.
 - For 26.3, add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3` to any of these.
 
 There are no unit tests yet (see the plan below).
@@ -45,7 +45,7 @@ CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs the gam
 
 ## Review plan
 
-A full review in October 2026 produced this plan. Done so far, on branch `claude/bold-einstein-juw9xd`:
+A full review in October 2026 produced this plan. Done so far (merged to `main`):
 
 1. **Quick fixes:** `gradlew` is executable. Auto 12-hour detection looks for an `h` or `K` hour field (it used to look for `a`, which missed regions such as Traditional Chinese, `Bh:mm`). Digits use `Locale.ROOT`. Fabric API needs `>=0.161.0`. README wording about `/time set`.
 2. **Text Background in the corners:** the corner clock now draws with `textWithBackdrop`, like the line above the hotbar.
@@ -76,3 +76,44 @@ Still to do:
    - **`build.gradle`:** the Java version is set twice (`release = 25` and `sourceCompatibility`/`targetCompatibility`).
    - **Mod Menu in dev runs:** add it as `modLocalRuntime` so the settings screen can be tried with `runClient`.
    - **Cosmetic:** the lang keys mix camelCase and snake_case, and the mixin config sets `injectors.defaultRequire` although it has no injectors.
+
+## Working on Gabby's mods (the same in every repo)
+
+Gabby makes these mods with help from Claude. Several Claude sessions work on them: one on her
+computer and others in the cloud. These rules keep their work fitting together.
+
+**One session per repo at a time.**
+- A cloud session works on a `claude/...` branch and never pushes to `main`. Gabby's local
+  session reviews the branch, runs its tests and merges it as one commit.
+- Start from the latest `main` (`git pull`), and say in the branch's last commit or a short note
+  what is finished and what isn't.
+
+**Commits.**
+- Author and committer are always `gabmaybelle <211247938+gabmaybelle@users.noreply.github.com>`:
+  `git -c user.name=gabmaybelle -c user.email=211247938+gabmaybelle@users.noreply.github.com commit ...`.
+  Never a personal email, and never `Claude <noreply@anthropic.com>` as the author. Claude goes in
+  a `Co-Authored-By:` line at the end of the message.
+- Ask Gabby before committing or pushing when she's around. Finish the build and the tests first.
+- Commit messages say what changed for players, in plain sentences.
+
+**Privacy.** These repos are public. Don't add personal email addresses, real names other than
+"Gabby", or anything about her other private projects and modpacks: not in code, docs, commits
+or test names. Check the diff for these before every push.
+
+**Tests.**
+- `./gradlew build` and `./gradlew runClientGameTest` (where the repo has one) must pass before
+  a commit. The game test opens a real game window for a minute or two.
+- A new or changed check should fail with the feature switched off: run it that way once, then
+  put the code back. A check that compares against the setting it tests proves nothing.
+- On Linux without a screen, run game tests under `xvfb-run -a`. 26.3 also needs
+  `SDL_VIDEO_FORCE_EGL=1` with `libegl1 libegl-mesa0` installed, or the game hangs at startup.
+
+**Writing.**
+- README and CHANGELOG are for players: plain, friendly, no jargon. New player-facing changes
+  go in the CHANGELOG's newest section.
+- Keep the credit line: "made by Gabby with help from Claude, an AI assistant".
+- Gabby publishes on Modrinth herself. Don't upload anything there.
+
+**Minecraft.** Fabric on Minecraft 26.3 (Mojang names; Loom 1.18.4, Java 25). Vanilla names
+changed a lot in 26.x: check the merged jar rather than older docs (for example `iron_chain`,
+`pink_petals[flower_amount=N]`, timelines instead of `time query daytime`).

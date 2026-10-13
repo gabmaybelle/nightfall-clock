@@ -5,12 +5,14 @@ import com.gabbymaybelle.nightfallclock.mixin.HudAccessor;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.minecraft.world.level.Level;
 
 /**
  * Starts the real game, opens a world and checks the parts that only break at runtime: the
  * mixin accessors (a renamed vanilla field crashes the game), reading the time from the sun,
- * and the dusk warning. Run with ./gradlew runClientGameTest; CI runs it on each supported
- * Minecraft version. Screenshots land in build/run/clientGameTest/screenshots.
+ * the dusk warning, the clock text in both formats, and no clock in the Nether. Run with
+ * ./gradlew runClientGameTest; CI runs it on each supported Minecraft version. Screenshots
+ * land in build/run/clientGameTest/screenshots.
  */
 public class NightfallClockGameTest implements FabricClientGameTest {
 	/** Vanilla ticks: 0 is 6:00 AM, 1000 ticks to the hour. */
@@ -47,6 +49,37 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 			singleplayer.getServer().runCommand("gamerule advance_time true");
 			context.waitFor(mc -> NightfallClock.duskShowing(), 200);
 			context.takeScreenshot("nightfallclock-dusk");
+			singleplayer.getServer().runCommand("gamerule advance_time false");
+
+			// The words on screen, in both formats: midnight and noon are 12, minutes are padded.
+			expectText(context, Config.TimeFormat.TWELVE_HOUR, 4, 14 * 60 + 35, "Day 4 · 2:35 PM");
+			expectText(context, Config.TimeFormat.TWELVE_HOUR, 1, 7 * 60 + 5, "Day 1 · 7:05 AM");
+			expectText(context, Config.TimeFormat.TWELVE_HOUR, 2, 0, "Day 2 · 12:00 AM");
+			expectText(context, Config.TimeFormat.TWELVE_HOUR, 2, 12 * 60, "Day 2 · 12:00 PM");
+			expectText(context, Config.TimeFormat.TWENTY_FOUR_HOUR, 4, 14 * 60 + 35, "Day 4 · 14:35");
+			expectText(context, Config.TimeFormat.TWENTY_FOUR_HOUR, 1, 7 * 60 + 5, "Day 1 · 07:05");
+
+			// The Nether has no day, so no clock.
+			singleplayer.getServer().runCommand("execute in minecraft:the_nether run tp @a 0 100 0");
+			context.waitFor(mc -> mc.level != null && mc.level.dimension() == Level.NETHER, 400);
+			context.waitTicks(5);
+			if (context.computeOnClient(mc -> NightfallClock.DayTime.of(mc.level)) != null) {
+				throw new AssertionError("The clock has a time in the Nether, which has no day");
+			}
+		}
+	}
+
+	/** Checks the clock's text for a day and time (minutes after midnight) in one time format. */
+	private static void expectText(ClientGameTestContext context, Config.TimeFormat format, int day, int minute, String expected) {
+		String shown = context.computeOnClient(mc -> {
+			Config.TimeFormat before = Config.timeFormat;
+			Config.timeFormat = format;
+			String text = new NightfallClock.DayTime(day, minute).describe().getString();
+			Config.timeFormat = before;
+			return text;
+		});
+		if (!shown.equals(expected)) {
+			throw new AssertionError("Expected \"" + expected + "\" (" + format + "), got \"" + shown + "\"");
 		}
 	}
 
