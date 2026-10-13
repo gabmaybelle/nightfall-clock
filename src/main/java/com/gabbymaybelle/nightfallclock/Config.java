@@ -3,19 +3,24 @@ package com.gabbymaybelle.nightfallclock;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.chrono.IsoChronology;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.FormatStyle;
+import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * Settings in {@code config/nightfallclock.properties}, also editable in game through
- * Mod Menu. Missing keys get their defaults and the file is rewritten with every key,
- * so players can see what exists. Changes apply straight away.
+ * Mod Menu. Missing keys get their defaults, and the file is only written when it's missing a
+ * setting (so players can see what exists) or the settings screen changes one; a value that
+ * can't be read keeps its default and says so in the log. Settings this version doesn't know are
+ * kept. Changes apply straight away.
  */
 public final class Config {
 	private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve(NightfallClock.MOD_ID + ".properties");
@@ -85,16 +90,29 @@ public final class Config {
 		duskWarning = bool(props, "duskWarning", duskWarning);
 		position = choice(props, "position", position);
 		timeFormat = choice(props, "timeFormat", timeFormat);
-		save();
+		loaded = props;
+		// Only write when there's something to add: a new file or a new setting.
+		if (!KEYS.stream().allMatch(props::containsKey)) {
+			save();
+		}
 	}
+
+	/** Every setting the file should have; the file is written when one is missing. */
+	private static final List<String> KEYS = List.of("clock", "duskWarning", "position", "timeFormat");
+	/** The file as it was read, so settings from a newer version (or added by hand) survive a save. */
+	private static Properties loaded = new Properties();
 
 	public static void save() {
 		Properties props = new Properties();
+		props.putAll(loaded);
 		props.setProperty("clock", Boolean.toString(clock));
 		props.setProperty("duskWarning", Boolean.toString(duskWarning));
 		props.setProperty("position", position.name().toLowerCase(Locale.ROOT));
 		props.setProperty("timeFormat", timeFormat.name().toLowerCase(Locale.ROOT));
-		try (Writer writer = Files.newBufferedWriter(FILE)) {
+		// Written to a temporary file first and then swapped in, so a crash part-way through never
+		// leaves a half-written or empty settings file.
+		Path temp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
+		try (Writer writer = Files.newBufferedWriter(temp)) {
 			props.store(writer, "Nightfall Clock (also in game: Mods > Nightfall Clock > settings, with Mod Menu)\n"
 					+ "clock: day and time above the hotbar (or in a corner)\n"
 					+ "duskWarning: message above the hotbar at sunset (6:00 PM)\n"
@@ -102,12 +120,31 @@ public final class Config {
 					+ "timeFormat: auto, twelve_hour or twenty_four_hour (auto = your computer's region)");
 		} catch (IOException e) {
 			NightfallClock.LOGGER.warn("Nightfall Clock: couldn't write {}", FILE, e);
+			return;
+		}
+		try {
+			try {
+				Files.move(temp, FILE, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			} catch (AtomicMoveNotSupportedException e) {
+				Files.move(temp, FILE, StandardCopyOption.REPLACE_EXISTING);
+			}
+		} catch (IOException e) {
+			NightfallClock.LOGGER.warn("Nightfall Clock: couldn't write {}", FILE, e);
 		}
 	}
 
 	private static boolean bool(Properties props, String key, boolean fallback) {
 		String value = props.getProperty(key);
-		return value == null ? fallback : Boolean.parseBoolean(value.trim());
+		if (value == null) {
+			return fallback;
+		}
+		String v = value.trim().toLowerCase(Locale.ROOT);
+		if (v.equals("true") || v.equals("false")) {
+			return v.equals("true");
+		}
+		// A typo shouldn't quietly switch a setting off: keep the default and say so.
+		NightfallClock.LOGGER.warn("Nightfall Clock: {} should be true or false, not \"{}\"; using {}", key, value.trim(), fallback);
+		return fallback;
 	}
 
 	private static <E extends Enum<E>> E choice(Properties props, String key, E fallback) {

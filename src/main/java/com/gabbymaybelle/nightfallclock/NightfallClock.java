@@ -55,10 +55,8 @@ public class NightfallClock implements ClientModInitializer {
 	private static final int EFFECT_ROW = 26;
 	private static final int WHITE = 0xFFFFFFFF;
 	private static final int GOLD = 0xFFFFAA00;
-	private static final int SUNSET_MINUTE = 18 * 60;
+	private static final int SUNSET_MINUTE = DuskWatch.SUNSET_MINUTE;
 	private static final int NIGHT_MINUTE = 19 * 60;
-	/** Larger forward steps than this (in game minutes) are /time set or sleeping, not dusk arriving. */
-	private static final int MAX_STEP_MINUTES = 10;
 
 	/** How long the dusk message stays up, in client ticks (20 per second), including a 1 s fade. */
 	private static final int DUSK_TICKS = 8 * 20;
@@ -89,7 +87,14 @@ public class NightfallClock implements ClientModInitializer {
 
 	/** The name of an installed mod that draws its own clock, or null. */
 	private static String otherClock;
-	private static int lastMinute = -1;
+	private static final DuskWatch DUSK = new DuskWatch();
+	/** The world the overworld day was last looked up for, and what was found (null: no day there). */
+	private static ClientLevel dayLevel;
+	private static Timeline dayTimeline;
+	/** The clock text last made, for which time and format, so it isn't rebuilt every frame. */
+	private static DayTime shownTime;
+	private static boolean shownTwelveHour;
+	private static Component shownText;
 	private static int duskTicksLeft = 0;
 	/** Fades the clock back in (0 to FADE_TICKS) after something else had its line. */
 	private static int clockShown = FADE_TICKS;
@@ -107,6 +112,17 @@ public class NightfallClock implements ClientModInitializer {
 	/** The name of an installed mod that draws its own clock and dusk message, or null. */
 	public static String otherClock() {
 		return otherClock;
+	}
+
+	/** The clock text for this time, made again only when the time or the format changes. */
+	private static Component textFor(DayTime time) {
+		boolean twelveHour = Config.timeFormat.twelveHour();
+		if (!time.equals(shownTime) || twelveHour != shownTwelveHour || shownText == null) {
+			shownTime = time;
+			shownTwelveHour = twelveHour;
+			shownText = time.describe();
+		}
+		return shownText;
 	}
 
 	/** Whether "The sun's getting real low" is up just now. For the game tests. */
@@ -139,7 +155,7 @@ public class NightfallClock implements ClientModInitializer {
 		int duskColour = (Math.max(8, Math.min(255, duskTicksLeft * 255 / FADE_TICKS)) << 24) | (GOLD & 0xFFFFFF);
 		Component duskText = Component.translatable("hud.nightfallclock.dusk");
 		boolean clock = Config.clock && mc.player != null;
-		Component text = time.describe();
+		Component text = textFor(time);
 		int colour = time.minute() >= SUNSET_MINUTE && time.minute() < NIGHT_MINUTE ? GOLD : WHITE;
 
 		if (clock && Config.position != Config.Position.ABOVE_HOTBAR) {
@@ -151,8 +167,10 @@ public class NightfallClock implements ClientModInitializer {
 			aboveHotbar(graphics, mc, duskText, duskColour, true);
 		} else if (clock && Config.position == Config.Position.ABOVE_HOTBAR) {
 			if (actionBarTicks > PERMANENT_ACTION_BAR) {
-				// A server keeping its own text in the action bar: show alongside it instead of hiding.
-				aboveHotbar(graphics, mc, text, colour | 0xFF000000, true);
+				// A server keeping its own text in the action bar: show alongside it instead of hiding,
+				// fading in over a second like the clock does everywhere else.
+				int alpha = Math.max(8, Math.min(255, (actionBarTicks - PERMANENT_ACTION_BAR) * 255 / FADE_TICKS));
+				aboveHotbar(graphics, mc, text, (alpha << 24) | (colour & 0xFFFFFF), true);
 			} else if (clockShown > 0) {
 				// Steps aside while something else is on the line, then fades back in.
 				int alpha = Math.max(8, clockShown * 255 / FADE_TICKS);
@@ -188,6 +206,8 @@ public class NightfallClock implements ClientModInitializer {
 			}
 			recent++;
 		}
+		// Unfocused chat shows only so many lines, however many arrived recently.
+		recent = Math.min(recent, mc.gui.hud.getChat().getLinesPerPage());
 		if (recent == 0) {
 			return false;
 		}
@@ -284,13 +304,13 @@ public class NightfallClock implements ClientModInitializer {
 
 	private static void tick(Minecraft mc) {
 		if (mc.level == null || mc.player == null) {
-			lastMinute = -1;
+			DUSK.update(null, -1);
 			duskTicksLeft = 0;
 			return;
 		}
 		DayTime time = DayTime.of(mc.level);
 		if (time == null) {
-			lastMinute = -1;
+			DUSK.update(mc.level, -1);
 			duskTicksLeft = 0;
 			return;
 		}
@@ -298,24 +318,28 @@ public class NightfallClock implements ClientModInitializer {
 			if (duskTicksLeft > 0) {
 				duskTicksLeft--;
 			}
-			boolean busy = lineBusy(mc, time.describe());
+			boolean busy = lineBusy(mc, textFor(time));
 			clockShown = busy || duskTicksLeft > 0 ? 0 : Math.min(FADE_TICKS, clockShown + 1);
 			actionBarTicks = ((HudAccessor) mc.gui.hud).nightfallclock$overlayMessageTime() > 0 ? actionBarTicks + 1 : 0;
 		}
-		int now = time.minute();
-		if (Config.duskWarning && otherClock == null && lastMinute >= 0 && lastMinute < SUNSET_MINUTE && now >= SUNSET_MINUTE && now - lastMinute <= MAX_STEP_MINUTES) {
+		if (DUSK.update(mc.level, time.minute()) && Config.duskWarning && otherClock == null) {
 			duskTicksLeft = DUSK_TICKS;
 		}
-		lastMinute = now;
 	}
 
 	/** The overworld day's position, or null when this dimension has no day cycle (the Nether, the End). */
 	record DayTime(int day, int minute) {
 		static DayTime of(ClientLevel level) {
-			Timeline timeline = level.registryAccess().lookupOrThrow(Registries.TIMELINE)
-					.get(Timelines.OVERWORLD_DAY).map(holder -> holder.value()).orElse(null);
-			if (timeline == null || timeline.periodTicks().isEmpty()
-					|| level.dimensionType().timelines().stream().noneMatch(h -> h.value() == timeline)) {
+			if (level != dayLevel) {
+				// Looked up once per world (a new world brings its own registries), not every frame.
+				dayLevel = level;
+				Timeline found = level.registryAccess().lookupOrThrow(Registries.TIMELINE)
+						.get(Timelines.OVERWORLD_DAY).map(holder -> holder.value()).orElse(null);
+				dayTimeline = found == null || found.periodTicks().isEmpty()
+						|| level.dimensionType().timelines().stream().noneMatch(h -> h.value() == found) ? null : found;
+			}
+			Timeline timeline = dayTimeline;
+			if (timeline == null) {
 				return null;
 			}
 			float sunAngle = level.environmentAttributes().getDimensionValue(EnvironmentAttributes.SUN_ANGLE);

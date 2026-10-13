@@ -2,9 +2,13 @@ package com.gabbymaybelle.nightfallclock;
 
 import com.gabbymaybelle.nightfallclock.mixin.ChatComponentAccessor;
 import com.gabbymaybelle.nightfallclock.mixin.HudAccessor;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.world.level.Level;
 
 /**
@@ -20,6 +24,7 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		settingsFile();
 		try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
 			singleplayer.getConnection().waitForChunksRender();
 
@@ -66,6 +71,44 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 			if (context.computeOnClient(mc -> NightfallClock.DayTime.of(mc.level)) != null) {
 				throw new AssertionError("The clock has a time in the Nether, which has no day");
 			}
+		}
+	}
+
+	/**
+	 * The settings file: a typo keeps the default instead of switching the clock off, case and
+	 * spaces don't matter, a setting from a newer version survives, no temporary file is left
+	 * behind, and a complete file isn't rewritten just by loading it (so notes added by hand stay).
+	 */
+	private static void settingsFile() {
+		Path file = FabricLoader.getInstance().getConfigDir().resolve(NightfallClock.MOD_ID + ".properties");
+		try {
+			Files.writeString(file, "clock=ture\nduskWarning= FALSE \nfutureSetting=hello\n");
+			Config.load();
+			if (!Config.clock) {
+				throw new AssertionError("A typo (\"ture\") switched the clock off instead of keeping its default");
+			}
+			if (Config.duskWarning) {
+				throw new AssertionError("\" FALSE \" didn't read as false");
+			}
+			String written = Files.readString(file);
+			if (!written.contains("futureSetting=hello") || !written.contains("position=above_hotbar")) {
+				throw new AssertionError("The file lost an unknown setting or didn't get the missing ones:\n" + written);
+			}
+			if (Files.exists(file.resolveSibling(file.getFileName() + ".tmp"))) {
+				throw new AssertionError("A temporary settings file was left behind");
+			}
+			String complete = "# a note added by hand\n" + written;
+			Files.writeString(file, complete);
+			Config.load();
+			if (!Files.readString(file).equals(complete)) {
+				throw new AssertionError("Loading a complete settings file rewrote it");
+			}
+		} catch (IOException e) {
+			throw new AssertionError("Couldn't use the settings file", e);
+		} finally {
+			Config.clock = true;
+			Config.duskWarning = true;
+			Config.save();
 		}
 	}
 

@@ -43,3 +43,6 @@ replay_*.log
 test-26.2/
 test-26.3/
 test-server/
+
+# Written by the unit tests (the game's logging setup)
+logs/

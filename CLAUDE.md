@@ -18,10 +18,10 @@ Needs JDK 25.
 
 - `./gradlew build`: jar in `build/libs/`.
 - `./gradlew runClient`: a dev game with the mod.
-- `./gradlew runClientGameTest`: launches the game, opens a world and checks the accessors, the clock time at several `/time set` points, the dusk warning, the clock text in both formats and that there is no clock in the Nether. It needs a display. Screenshots go to `build/run/clientGameTest/screenshots/`.
+- `./gradlew runClientGameTest`: launches the game, checks the settings file (typos, unknown settings, safe saving), opens a world and checks the accessors, the clock time at several `/time set` points, the dusk warning, the clock text in both formats and that there is no clock in the Nether. It needs a display. Screenshots go to `build/run/clientGameTest/screenshots/`.
 - For 26.3, add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3` to any of these.
 
-There are no unit tests yet (see the plan below).
+`./gradlew test` runs the unit tests (the dusk rule and reading the time from the sun); `build` runs them too.
 
 CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs the game test on each. Only the 26.2 jar is uploaded as the release artifact. That one jar is what players get for both versions.
 
@@ -51,31 +51,27 @@ A full review in October 2026 produced this plan. Done so far (merged to `main`)
 2. **Text Background in the corners:** the corner clock now draws with `textWithBackdrop`, like the line above the hotbar.
 3. **26.3 support proven:** CI builds against both versions and runs the in-game test on each.
 
-Still to do:
+4. **Pure logic unit-tested** (`./gradlew test`, also part of `build`): the dusk rule now lives in
+   `DuskWatch` (no Minecraft classes) with tests for crossing 6:00 PM, short and long jumps, joining
+   after 6:00 PM, the midnight wrap, a world with no day and a different world (the proxy case);
+   `minuteFromSun` has tests for noon, midnight, angles past 360 or below 0, and never going
+   backwards. Config parsing and the clock text are checked by the game test instead (they need
+   Fabric Loader and the game's translations).
+5. **Fixes:** per-world timeline lookup and per-minute clock text are cached; the settings file is
+   only written when a setting is missing, keeps unknown settings, is written to a temporary file
+   and moved into place, and a value that isn't true or false keeps its default with a warning;
+   the clock fades in alongside a permanent action bar; a different world resets the dusk tracking
+   (no false warning behind a proxy); `chatCovers` caps at the lines unfocused chat shows. CI runs
+   once per push (forks' pull requests too) with Gradle caching. The Java version is set once. The
+   mixin config no longer sets `injectors.defaultRequire`.
 
-4. **Split out the pure logic and unit-test it** (JUnit, no Minecraft classes needed):
-   - Sun angle to minute (`minuteFromSun`): known angles, never going backwards, angles near 360° and negative angles.
-   - The dusk rule in `tick()`: crossing 6:00 PM normally, `/time set` jumps of more or less than 10 minutes, joining a world after 6:00 PM, the midnight wrap, changing dimensions.
-   - Config parsing: unknown values, spaces, mixed case.
-   - Clock text: 12:xx AM and PM, padding.
+Still to do, if wanted:
 
-   Static state (`duskTicksLeft`, `lastMinute`) needs to move into small objects first. The game test is the safety net for this refactor.
-5. **The rest, as time allows:**
-   - **Fewer per-frame lookups:** cache the overworld timeline per world, and the clock text per day, minute and format. Today `DayTime.of()` and `describe()` run every frame and every tick.
-   - **Draw order:** register the HUD element before chat instead of `addLast`. Then simplify `chatCovers`, which also overcounts by not capping at the unfocused chat height.
-   - **Config:**
-     - `load()` always rewrites the file, which drops comments and unknown keys.
-     - The write should be atomic: temp file, then `ATOMIC_MOVE`.
-     - `bool()` should warn on a value that isn't true or false.
-   - **The permanent action-bar case:** the clock pops in at full brightness on tick 81 instead of fading in.
-   - **A rare false dusk warning** when moving between servers behind a proxy, because `lastMinute` carries over from the old world.
-   - **CI:**
-     - It runs twice on a push with an open pull request (both `push` and `pull_request`).
-     - Add `gradle/actions/setup-gradle` for caching.
-     - Add a release workflow (tag to Modrinth).
-   - **`build.gradle`:** the Java version is set twice (`release = 25` and `sourceCompatibility`/`targetCompatibility`).
-   - **Mod Menu in dev runs:** add it as `modLocalRuntime` so the settings screen can be tried with `runClient`.
-   - **Cosmetic:** the lang keys mix camelCase and snake_case, and the mixin config sets `injectors.defaultRequire` although it has no injectors.
+- **Draw order:** register the HUD element before chat instead of `addLast`, then simplify
+  `chatCovers`. This changes how the clock looks under chat, so try it in game first.
+- **Mod Menu in dev runs:** needs a different Mod Menu version for 26.2 and 26.3.
+- **Lang keys** mix camelCase and snake_case. Renaming them would break any translation made since.
+- No release workflow: Gabby publishes on Modrinth herself.
 
 ## Working on Gabby's mods (the same in every repo)
 

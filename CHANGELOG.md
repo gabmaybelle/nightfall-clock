@@ -6,7 +6,11 @@
 - Auto time format now picks 12-hour time in regions that write it with a day period instead of AM/PM, such as Traditional Chinese.
 - The clock's minutes always use the same digits as the day and hour, in every region.
 - Every build is now tested in game on both Minecraft 26.2 and 26.3.
+- No more false "The sun's getting real low" when a server network moves you to another world that's already past 6:00 PM.
+- On a server that keeps its own text in the action bar, the clock now fades in beside it instead of popping in.
+- The clock no longer steps aside for old chat messages that chat isn't showing any more.
 - Fabric API 0.161.0 or newer is now required, the version Nightfall Clock is built against, so an older one gets a clear message instead of a crash.
+- Safer settings: the settings file can't be left half-written or empty if the game crashes while saving it; a typo in a setting ("ture") keeps its default instead of quietly switching it off, with a note in the log saying which setting; and settings the mod doesn't know about, or notes you've added, are no longer wiped each time the game starts.
 
 ## 0.1.0
 

@@ -53,9 +53,6 @@ java {
 	// if it is present.
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
-
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
 }
 
 jar {
@@ -67,3 +64,14 @@ jar {
 	}
 }
 
+
+// Unit tests (src/test): the dusk rule and reading the time from the sun. `./gradlew test`; they
+// also run with `./gradlew build`.
+dependencies {
+	testImplementation "org.junit.jupiter:junit-jupiter:5.12.2"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
+}

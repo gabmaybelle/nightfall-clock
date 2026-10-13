@@ -57,7 +57,7 @@ Requires JDK 25.
 
 The mod jar is written to `build/libs/nightfallclock-<version>.jar`. The icon is drawn by `node tools/generate-icon.js`.
 
-`./gradlew runClientGameTest` starts the game, opens a test world and checks the clock and dusk warning (it needs a display; on a Linux virtual display such as Xvfb, set `SDL_VIDEO_FORCE_EGL=1` for 26.3). Add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3` to build or test against 26.3.
+`./gradlew runClientGameTest` starts the game, checks the settings file (typos, unknown settings, safe saving), then opens a test world and checks the clock and dusk warning (it needs a display; on a Linux virtual display such as Xvfb, set `SDL_VIDEO_FORCE_EGL=1` for 26.3). Add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3` to build or test against 26.3.
 
 ## Licence
 
