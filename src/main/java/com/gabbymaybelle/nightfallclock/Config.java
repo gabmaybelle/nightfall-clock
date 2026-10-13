@@ -44,12 +44,28 @@ public final class Config {
 	public enum TimeFormat {
 		AUTO, TWELVE_HOUR, TWENTY_FOUR_HOUR;
 
-		private static final boolean LOCALE_USES_12_HOUR = DateTimeFormatterBuilder
-				.getLocalizedDateTimePattern(null, FormatStyle.SHORT, IsoChronology.INSTANCE, Locale.getDefault(Locale.Category.FORMAT))
-				.contains("a");
+		private static final boolean LOCALE_USES_12_HOUR = usesTwelveHour(DateTimeFormatterBuilder
+				.getLocalizedDateTimePattern(null, FormatStyle.SHORT, IsoChronology.INSTANCE, Locale.getDefault(Locale.Category.FORMAT)));
 
 		public boolean twelveHour() {
 			return this == AUTO ? LOCALE_USES_12_HOUR : this == TWELVE_HOUR;
+		}
+
+		/**
+		 * Whether a time pattern counts hours 1-12 ({@code h} or {@code K}). Checking for the hour
+		 * rather than the AM/PM marker also catches regions that use a day period instead
+		 * ("Bh:mm" in Traditional Chinese). Text in quotes ("HH 'h' mm") is skipped.
+		 */
+		private static boolean usesTwelveHour(String pattern) {
+			boolean quoted = false;
+			for (char c : pattern.toCharArray()) {
+				if (c == '\'') {
+					quoted = !quoted;
+				} else if (!quoted && (c == 'h' || c == 'K')) {
+					return true;
+				}
+			}
+			return false;
 		}
 	}
 

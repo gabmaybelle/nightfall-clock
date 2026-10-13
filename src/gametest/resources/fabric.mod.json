@@ -1,0 +1,17 @@
+{
+	"schemaVersion": 1,
+	"id": "nightfallclock-gametest",
+	"version": "1.0.0",
+	"name": "Nightfall Clock Game Tests",
+	"description": "Starts the game with Nightfall Clock, opens a world and checks the clock and dusk warning. Run: ./gradlew runClientGameTest",
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"com.gabbymaybelle.nightfallclock.NightfallClockGameTest"
+		]
+	},
+	"depends": {
+		"nightfallclock": "*"
+	}
+}

@@ -1,12 +1,28 @@
 # Builds the mod on every push and pull request, so a broken build shows up straight away.
-# The built jars are attached to each run under "Artifacts".
+# It builds against each Minecraft version the mod supports and runs the in-game test on
+# each (src/gametest), since a vanilla change can compile fine and still crash on launch.
+# The jar built against 26.2 (the one players get) is attached to each run under "Artifacts",
+# and each version's game-test screenshots alongside it.
 
 name: build
 on: [pull_request, push]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The versions in gradle.properties.
+          - minecraft: '26.2'
+            gradle_args: ''
+          - minecraft: '26.3'
+            gradle_args: '-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3'
+    name: build (Minecraft ${{ matrix.minecraft }})
     steps:
       - name: checkout repository
         uses: actions/checkout@v6
@@ -17,11 +33,26 @@ jobs:
         with:
           java-version: '25'
           distribution: 'microsoft'
-      - name: make gradle wrapper executable
-        run: chmod +x ./gradlew
       - name: build
-        run: ./gradlew build
+        run: ./gradlew build ${{ matrix.gradle_args }}
+      - name: install EGL
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libegl1 libegl-mesa0
+      - name: run game test
+        # From 26.3 the game asks for an sRGB-capable window, which Xvfb's GLX can't give, so
+        # the game would hang at startup. Mesa's EGL can; SDL uses it with this set.
+        env:
+          SDL_VIDEO_FORCE_EGL: '1'
+        timeout-minutes: 10
+        run: xvfb-run -a ./gradlew runClientGameTest ${{ matrix.gradle_args }}
+      - name: capture game test screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Game test screenshots (Minecraft ${{ matrix.minecraft }})
+          path: build/run/clientGameTest/screenshots/
+          if-no-files-found: ignore
       - name: capture build artifacts
+        if: matrix.minecraft == '26.2'
         uses: actions/upload-artifact@v7
         with:
           name: Artifacts

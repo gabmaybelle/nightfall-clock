@@ -6,6 +6,16 @@ repositories {
 	maven { url = 'https://maven.terraformersmc.com/releases/' }
 }
 
+fabricApi {
+	// An in-game test mod in src/gametest: ./gradlew runClientGameTest
+	configureTests {
+		createSourceSet = true
+		modId = "nightfallclock-gametest"
+		enableGameTests = false
+		enableClientGameTests = true
+	}
+}
+
 loom {
 
 	mods {

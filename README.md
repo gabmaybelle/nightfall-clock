@@ -8,7 +8,7 @@ I kept getting caught out by the dark, halfway through a build or a long way fro
 
 A line of text just above your hearts and hunger: "Day 4 · 2:35 PM". It turns gold at 6:00 PM and stays gold until 7:00 PM, when night falls.
 
-At 6:00 PM that line reads "The sun's getting real low" for a few seconds, then goes back to the time. It only happens when dusk arrives as you play, not when you skip ahead with `/time set` or by sleeping.
+At 6:00 PM that line reads "The sun's getting real low" for a few seconds, then goes back to the time. It only happens when dusk arrives as you play, not when you sleep or jump ahead with `/time set` (a jump of just a few minutes still counts as playing through it).
 
 The clock shares its spot politely. When something else needs that space (the name of the item you just switched to, a message in the action bar, or recent chat), the clock steps aside and fades back in once it's gone. If a server keeps its own text in the action bar all the time, the clock shows alongside it instead of staying hidden.
 
@@ -56,6 +56,8 @@ Requires JDK 25.
 ```
 
 The mod jar is written to `build/libs/nightfallclock-<version>.jar`. The icon is drawn by `node tools/generate-icon.js`.
+
+`./gradlew runClientGameTest` starts the game, opens a test world and checks the clock and dusk warning (it needs a display; on a Linux virtual display such as Xvfb, set `SDL_VIDEO_FORCE_EGL=1` for 26.3). Add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3` to build or test against 26.3.
 
 ## Licence
 

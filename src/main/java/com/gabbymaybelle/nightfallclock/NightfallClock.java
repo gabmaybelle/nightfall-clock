@@ -2,6 +2,7 @@ package com.gabbymaybelle.nightfallclock;
 
 import com.gabbymaybelle.nightfallclock.mixin.ChatComponentAccessor;
 import com.gabbymaybelle.nightfallclock.mixin.HudAccessor;
+import java.util.Locale;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -106,6 +107,11 @@ public class NightfallClock implements ClientModInitializer {
 	/** The name of an installed mod that draws its own clock and dusk message, or null. */
 	public static String otherClock() {
 		return otherClock;
+	}
+
+	/** Whether "The sun's getting real low" is up just now. For the game tests. */
+	static boolean duskShowing() {
+		return duskTicksLeft > 0;
 	}
 
 	private static String findOtherClock() {
@@ -241,7 +247,8 @@ public class NightfallClock implements ClientModInitializer {
 		}
 		int x = corner.right() ? graphics.guiWidth() - width - MARGIN : MARGIN;
 		int y = !top ? graphics.guiHeight() - mc.font.lineHeight - MARGIN : corner.right() ? belowEffects(mc) : MARGIN;
-		graphics.text(mc.font, text, x, y, colour, true);
+		// The same dark backdrop as above the hotbar, when the player has Text Background on.
+		graphics.textWithBackdrop(mc.font, text, x, y, width, colour);
 	}
 
 	/**
@@ -331,12 +338,15 @@ public class NightfallClock implements ClientModInitializer {
 			return (12 * 60 + low) % (24 * 60);
 		}
 
-		/** "Day 4 · 2:35 PM", or "Day 4 · 14:35" with 24-hour time. */
+		/**
+		 * "Day 4 · 2:35 PM", or "Day 4 · 14:35" with 24-hour time. Locale.ROOT keeps the digits
+		 * Latin, matching the day and hour numbers, which the game always writes that way.
+		 */
 		Component describe() {
 			int hour24 = minute / 60;
-			String minutes = String.format("%02d", minute % 60);
+			String minutes = String.format(Locale.ROOT, "%02d", minute % 60);
 			if (!Config.timeFormat.twelveHour()) {
-				return Component.translatable("hud.nightfallclock.clock_24h", day, String.format("%02d", hour24), minutes);
+				return Component.translatable("hud.nightfallclock.clock_24h", day, String.format(Locale.ROOT, "%02d", hour24), minutes);
 			}
 			int hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
 			return Component.translatable("hud.nightfallclock.clock", day, hour12, minutes,

@@ -1,0 +1,78 @@
+# Nightfall Clock
+
+A client-side Fabric mod for Minecraft 26.2 and 26.3: a day counter and clock above the hotbar, and "The sun's getting real low" at 6:00 PM. It reads the time from the sun's angle, not from tick counts, so it stays right on packs with longer or stretched days. See README.md for what players see.
+
+## Layout
+
+- `src/main/java/com/gabbymaybelle/nightfallclock/`
+  - `NightfallClock.java`: entrypoint, HUD drawing, the tick handler (dusk detection, fades), and the `DayTime` record (sun angle to clock time).
+  - `Config.java`: `config/nightfallclock.properties`, the `Position` and `TimeFormat` enums.
+  - `SettingsScreen.java` and `ModMenuIntegration.java`: settings through Mod Menu (optional, compile-only).
+  - `mixin/HudAccessor.java` and `mixin/ChatComponentAccessor.java`: read-only accessors for vanilla fields.
+- `src/gametest/`: a separate test mod (`nightfallclock-gametest`) with a Fabric client game test.
+- `tools/generate-icon.js`: draws `icon.png` (`node tools/generate-icon.js`).
+
+## Build and test
+
+Needs JDK 25.
+
+- `./gradlew build`: jar in `build/libs/`.
+- `./gradlew runClient`: a dev game with the mod.
+- `./gradlew runClientGameTest`: launches the game, opens a world and checks the accessors, the clock time at several `/time set` points, and the dusk warning. It needs a display. Screenshots go to `build/run/clientGameTest/screenshots/`.
+- For 26.3, add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3` to any of these.
+
+There are no unit tests yet (see the plan below).
+
+CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs the game test on each. Only the 26.2 jar is uploaded as the release artifact. That one jar is what players get for both versions.
+
+## Gotchas
+
+- **The 26.3 game test on a virtual display.** 26.3's renderer (`com.mojang.renderpearl`, on SDL3) needs an sRGB-capable window. Xvfb's GLX has no sRGB visuals, so the game fails to make a window and then hangs instead of exiting. Fix: set `SDL_VIDEO_FORCE_EGL=1` and install `libegl1 libegl-mesa0`. CI does both, and the test step has a 10-minute timeout. 26.2 opens its window through GLFW and isn't affected.
+- **Fabric API versions are parallel per Minecraft version**, for example `0.161.0+26.2` and `0.161.0+26.3`. `fabric.mod.json` requires `>=0.161.0`, the version the mod is built against.
+- **Mixin accessors fail hard.** If vanilla renames a field they read, the game crashes on launch. Compiling won't catch it, but the game test will. Before widening the supported versions, run the game test on the new version.
+- **Copied vanilla values.** The sun easing (`timeline/day.json`, `minecraft:visual/sun_angle`, angle 0 at tick 6000, noon) and the text positions (item name 59 above the bottom, action bar 72, chat 40) are copied from vanilla. Check them when adding a Minecraft version. All of them were the same in 26.2 and 26.3.
+- **Restricted networks.** Builds need `maven.terraformersmc.com` (Mod Menu), `maven.fabricmc.net`, Maven Central and Mojang's servers. Running the game also needs `resources.download.minecraft.net` for assets. On a network that blocks the Mod Menu server, a local stub of its two API interfaces (`ConfigScreenFactory`, `ModMenuApi`), added through a Gradle init script, is enough to compile. Don't commit it.
+
+## Conventions
+
+- Tabs for indentation. Imports are in alphabetical order (`com`, `java`, `net`, `org`).
+- Comments explain why, in plain sentences, and name the vanilla source of any copied value.
+- Every string players see goes in `assets/nightfallclock/lang/en_us.json`.
+- Format numbers with `Locale.ROOT` so digits match the game's.
+- Log messages start with "Nightfall Clock:".
+- The README and CHANGELOG are written for players: plain and friendly, no jargon. Add player-facing changes under `## Unreleased` in `CHANGELOG.md`.
+- The mod is credited as "made by Gabby with help from Claude, an AI assistant" (README). Keep that line.
+
+## Review plan
+
+A full review in October 2026 produced this plan. Done so far, on branch `claude/bold-einstein-juw9xd`:
+
+1. **Quick fixes:** `gradlew` is executable. Auto 12-hour detection looks for an `h` or `K` hour field (it used to look for `a`, which missed regions such as Traditional Chinese, `Bh:mm`). Digits use `Locale.ROOT`. Fabric API needs `>=0.161.0`. README wording about `/time set`.
+2. **Text Background in the corners:** the corner clock now draws with `textWithBackdrop`, like the line above the hotbar.
+3. **26.3 support proven:** CI builds against both versions and runs the in-game test on each.
+
+Still to do:
+
+4. **Split out the pure logic and unit-test it** (JUnit, no Minecraft classes needed):
+   - Sun angle to minute (`minuteFromSun`): known angles, never going backwards, angles near 360° and negative angles.
+   - The dusk rule in `tick()`: crossing 6:00 PM normally, `/time set` jumps of more or less than 10 minutes, joining a world after 6:00 PM, the midnight wrap, changing dimensions.
+   - Config parsing: unknown values, spaces, mixed case.
+   - Clock text: 12:xx AM and PM, padding.
+
+   Static state (`duskTicksLeft`, `lastMinute`) needs to move into small objects first. The game test is the safety net for this refactor.
+5. **The rest, as time allows:**
+   - **Fewer per-frame lookups:** cache the overworld timeline per world, and the clock text per day, minute and format. Today `DayTime.of()` and `describe()` run every frame and every tick.
+   - **Draw order:** register the HUD element before chat instead of `addLast`. Then simplify `chatCovers`, which also overcounts by not capping at the unfocused chat height.
+   - **Config:**
+     - `load()` always rewrites the file, which drops comments and unknown keys.
+     - The write should be atomic: temp file, then `ATOMIC_MOVE`.
+     - `bool()` should warn on a value that isn't true or false.
+   - **The permanent action-bar case:** the clock pops in at full brightness on tick 81 instead of fading in.
+   - **A rare false dusk warning** when moving between servers behind a proxy, because `lastMinute` carries over from the old world.
+   - **CI:**
+     - It runs twice on a push with an open pull request (both `push` and `pull_request`).
+     - Add `gradle/actions/setup-gradle` for caching.
+     - Add a release workflow (tag to Modrinth).
+   - **`build.gradle`:** the Java version is set twice (`release = 25` and `sourceCompatibility`/`targetCompatibility`).
+   - **Mod Menu in dev runs:** add it as `modLocalRuntime` so the settings screen can be tried with `runClient`.
+   - **Cosmetic:** the lang keys mix camelCase and snake_case, and the mixin config sets `injectors.defaultRequire` although it has no injectors.
