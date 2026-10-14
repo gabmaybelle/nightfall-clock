@@ -5,7 +5,6 @@
   "hud.nightfallclock.pm": "PM",
   "hud.nightfallclock.dusk": "The sun's getting real low",
   "nightfallclock.options.title": "Nightfall Clock",
-  "nightfallclock.options.other_clock": "%s shows its own clock, so this one stays hidden",
   "nightfallclock.options.clock": "Clock",
   "nightfallclock.options.clock.tooltip": "The day and time just above your hotbar. It turns gold in the hour before night.",
   "nightfallclock.options.duskWarning": "Dusk Warning",

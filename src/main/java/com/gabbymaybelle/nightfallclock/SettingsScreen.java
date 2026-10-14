@@ -22,9 +22,6 @@ public class SettingsScreen extends OptionsSubScreen {
 
 	@Override
 	protected void addOptions() {
-		if (NightfallClock.otherClock() != null) {
-			list.addHeader(Component.translatable("nightfallclock.options.other_clock", NightfallClock.otherClock()));
-		}
 		list.addSmall(
 				toggle("clock", Config.clock, v -> Config.clock = v),
 				toggle("duskWarning", Config.duskWarning, v -> Config.duskWarning = v),

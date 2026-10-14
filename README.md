@@ -37,7 +37,6 @@ If you play with Text Background set to Everywhere (Options, Accessibility), the
 
 - It's client-side only. It works on any server, and the server doesn't need it.
 - The day number changes at 6:00 AM, the way Minecraft counts days, so 2:00 AM still belongs to the day before.
-- [Espresso Flavoured Core](https://github.com/gabmaybelle/espresso-flavoured) has its own clock and dusk message, so Nightfall Clock stays hidden when it's installed.
 
 ## Requirements
 

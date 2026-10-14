@@ -6,7 +6,6 @@ import java.util.Locale;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -38,15 +37,10 @@ import org.slf4j.LoggerFactory;
  *
  * Each part can be switched off, the clock can move to a corner and show 12- or
  * 24-hour time (settings screen through Mod Menu, or config/nightfallclock.properties).
- * Mods that already draw their own clock and dusk message take priority, so the screen
- * never shows two.
  */
 public class NightfallClock implements ClientModInitializer {
 	public static final String MOD_ID = "nightfallclock";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-
-	/** Mods with their own corner clock and dusk message. */
-	private static final String[] CLOCK_MODS = {"espresso_flavoured"};
 
 	private static final int MARGIN = 4;
 	/** Half of the vanilla hotbar's width (182 GUI pixels), which sits centred at the bottom. */
@@ -85,8 +79,6 @@ public class NightfallClock implements ClientModInitializer {
 		}
 	}
 
-	/** The name of an installed mod that draws its own clock, or null. */
-	private static String otherClock;
 	private static final DuskWatch DUSK = new DuskWatch();
 	/** The world the overworld day was last looked up for, and what was found (null: no day there). */
 	private static ClientLevel dayLevel;
@@ -104,14 +96,8 @@ public class NightfallClock implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		Config.load();
-		otherClock = findOtherClock();
 		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(MOD_ID, "clock"), NightfallClock::extract);
 		ClientTickEvents.END_CLIENT_TICK.register(NightfallClock::tick);
-	}
-
-	/** The name of an installed mod that draws its own clock and dusk message, or null. */
-	public static String otherClock() {
-		return otherClock;
 	}
 
 	/** The clock text for this time, made again only when the time or the format changes. */
@@ -130,21 +116,9 @@ public class NightfallClock implements ClientModInitializer {
 		return duskTicksLeft > 0;
 	}
 
-	private static String findOtherClock() {
-		for (String id : CLOCK_MODS) {
-			var mod = FabricLoader.getInstance().getModContainer(id);
-			if (mod.isPresent()) {
-				String name = mod.get().getMetadata().getName();
-				LOGGER.info("Nightfall Clock: {} has its own clock and dusk message, so this one stays hidden", name);
-				return name;
-			}
-		}
-		return null;
-	}
-
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker delta) {
 		Minecraft mc = Minecraft.getInstance();
-		if (mc.level == null || otherClock != null || mc.gui.hud.isHidden() || mc.getDebugOverlay().showDebugScreen()) {
+		if (mc.level == null || mc.gui.hud.isHidden() || mc.getDebugOverlay().showDebugScreen()) {
 			return;
 		}
 		DayTime time = DayTime.of(mc.level);
@@ -322,7 +296,7 @@ public class NightfallClock implements ClientModInitializer {
 			clockShown = busy || duskTicksLeft > 0 ? 0 : Math.min(FADE_TICKS, clockShown + 1);
 			actionBarTicks = ((HudAccessor) mc.gui.hud).nightfallclock$overlayMessageTime() > 0 ? actionBarTicks + 1 : 0;
 		}
-		if (DUSK.update(mc.level, time.minute()) && Config.duskWarning && otherClock == null) {
+		if (DUSK.update(mc.level, time.minute()) && Config.duskWarning) {
 			duskTicksLeft = DUSK_TICKS;
 		}
 	}

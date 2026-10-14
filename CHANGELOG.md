@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Nightfall Clock no longer hides itself when Espresso Flavoured Core is installed: Espresso's own clock is gone, and Nightfall Clock is the clock in its pack.
+
 ## 0.2.0
 
 - With Text Background set to Everywhere, the clock gets its dark box in the corners too, not just above the hotbar.
@@ -20,5 +24,5 @@ The first release.
 - "The sun's getting real low" above the hotbar at 6:00 PM, when dusk arrives as you play (not after sleeping or `/time set`).
 - The clock steps aside for the held item's name, action-bar messages and recent chat, then fades back in. If a server keeps its own text in the action bar, the clock shows alongside it.
 - Settings through Mod Menu, or `config/nightfallclock.properties`: clock on or off, dusk warning on or off, position (above the hotbar or any corner) and 12- or 24-hour time (Auto follows your computer's region).
-- Hidden with F1, in the Nether and the End, and when Espresso Flavoured Core (which has its own clock) is installed.
+- Hidden with F1, and in the Nether and the End.
 - Client-side only; one jar for Minecraft 26.2 and 26.3.
