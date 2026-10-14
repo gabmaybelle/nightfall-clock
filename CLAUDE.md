@@ -40,7 +40,7 @@ CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs the gam
 - Every string players see goes in `assets/nightfallclock/lang/en_us.json`.
 - Format numbers with `Locale.ROOT` so digits match the game's.
 - Log messages start with "Nightfall Clock:".
-- The README and CHANGELOG are written for players: plain and friendly, no jargon. Add player-facing changes under `## Unreleased` in `CHANGELOG.md`.
+- The README and CHANGELOG are written for players: plain and friendly, no jargon. Add player-facing changes under `## Unreleased` at the top of `CHANGELOG.md` (start that heading again after a release is numbered).
 - The mod is credited as "made by Gabby with help from Claude, an AI assistant" (README). Keep that line.
 
 ## Review plan

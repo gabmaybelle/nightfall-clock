@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
 - With Text Background set to Everywhere, the clock gets its dark box in the corners too, not just above the hotbar.
 - Auto time format now picks 12-hour time in regions that write it with a day period instead of AM/PM, such as Traditional Chinese.
