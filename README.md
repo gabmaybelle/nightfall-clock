@@ -46,6 +46,8 @@ If you play with Text Background set to Everywhere (Options, Accessibility), the
 
 Optional: [Mod Menu](https://modrinth.com/mod/modmenu), for the settings screen.
 
+**Other versions:** Minecraft 1.20.1, on Fabric and on Forge, is on the [`1.20.1` branch](https://github.com/gabmaybelle/nightfall-clock/tree/1.20.1), with its download on the [1.20.1 release page](https://github.com/gabmaybelle/nightfall-clock/releases/tag/v0.2.1%2B1.20.1).
+
 ## Building
 
 Requires JDK 25.
