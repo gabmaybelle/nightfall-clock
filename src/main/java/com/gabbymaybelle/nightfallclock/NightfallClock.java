@@ -5,24 +5,19 @@ import com.gabbymaybelle.nightfallclock.mixin.HudAccessor;
 import java.util.Locale;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-import net.minecraft.client.DeltaTracker;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.minecraft.client.GuiMessage;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.EffectRenderingInventoryScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.multiplayer.chat.GuiMessage;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
-import net.minecraft.util.EasingType;
-import net.minecraft.world.attribute.EnvironmentAttributes;
+import net.minecraft.util.FastColor;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.ChatVisiblity;
-import net.minecraft.world.timeline.Timeline;
-import net.minecraft.world.timeline.Timelines;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,21 +63,23 @@ public class NightfallClock implements ClientModInitializer {
 	/** And the held item's name 59 above the bottom (in survival and adventure). */
 	private static final int ITEM_NAME_OFFSET = 59;
 
-	/** The easing of vanilla's minecraft:visual/sun_angle track in timeline/day.json. */
-	private static final EasingType VANILLA_SUN = EasingType.cubicBezier(0.362F, 0.241F, 0.638F, 0.759F);
-	/** Vanilla's sun angle (degrees, 0 at noon) at each minute after noon; rises steadily to 360. */
+	/**
+	 * Vanilla's sun angle (degrees, 0 at noon) at each minute after noon; rises steadily to 360.
+	 * The same curve as DimensionType.timeOfDay in 1.20.1, which eases the sun so it lingers near
+	 * the horizon: d is how far through the day since noon, and the sun sits at (2d + e) / 3 of a
+	 * turn with e = 0.5 - cos(d * pi) / 2.
+	 */
 	private static final float[] SUN_AT_MINUTE = new float[24 * 60];
 
 	static {
 		for (int i = 0; i < SUN_AT_MINUTE.length; i++) {
-			SUN_AT_MINUTE[i] = 360.0F * VANILLA_SUN.apply(i / (float) SUN_AT_MINUTE.length);
+			double d = i / (double) SUN_AT_MINUTE.length;
+			double e = 0.5 - Math.cos(d * Math.PI) / 2.0;
+			SUN_AT_MINUTE[i] = (float) (360.0 * (d * 2.0 + e) / 3.0);
 		}
 	}
 
 	private static final DuskWatch DUSK = new DuskWatch();
-	/** The world the overworld day was last looked up for, and what was found (null: no day there). */
-	private static ClientLevel dayLevel;
-	private static Timeline dayTimeline;
 	/** The clock text last made, for which time and format, so it isn't rebuilt every frame. */
 	private static DayTime shownTime;
 	private static boolean shownTwelveHour;
@@ -96,7 +93,7 @@ public class NightfallClock implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		Config.load();
-		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(MOD_ID, "clock"), NightfallClock::extract);
+		HudRenderCallback.EVENT.register(NightfallClock::extract);
 		ClientTickEvents.END_CLIENT_TICK.register(NightfallClock::tick);
 	}
 
@@ -116,9 +113,9 @@ public class NightfallClock implements ClientModInitializer {
 		return duskTicksLeft > 0;
 	}
 
-	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker delta) {
+	private static void extract(GuiGraphics graphics, float tickDelta) {
 		Minecraft mc = Minecraft.getInstance();
-		if (mc.level == null || mc.gui.hud.isHidden() || mc.getDebugOverlay().showDebugScreen()) {
+		if (mc.level == null || mc.options.hideGui || mc.options.renderDebug) {
 			return;
 		}
 		DayTime time = DayTime.of(mc.level);
@@ -133,7 +130,7 @@ public class NightfallClock implements ClientModInitializer {
 		int colour = time.minute() >= SUNSET_MINUTE && time.minute() < NIGHT_MINUTE ? GOLD : WHITE;
 
 		if (clock && Config.position != Config.Position.ABOVE_HOTBAR) {
-			inCorner(graphics, mc, Config.position, text, colour, mc.gui.screen() instanceof ChatScreen);
+			inCorner(graphics, mc, Config.position, text, colour, mc.screen instanceof ChatScreen);
 		}
 		if (dusk) {
 			// The dusk message has the line to itself, stepping around vanilla's text so it's
@@ -158,9 +155,9 @@ public class NightfallClock implements ClientModInitializer {
 	 * action-bar message, or chat (open, or recent messages reaching up over the clock).
 	 */
 	private static boolean lineBusy(Minecraft mc, Component text) {
-		HudAccessor hud = (HudAccessor) mc.gui.hud;
+		HudAccessor hud = (HudAccessor) mc.gui;
 		boolean itemName = hud.nightfallclock$toolHighlightTimer() > 0 && !hud.nightfallclock$lastToolHighlight().isEmpty();
-		return itemName || hud.nightfallclock$overlayMessageTime() > 0 || mc.gui.screen() instanceof ChatScreen || chatCovers(mc, text);
+		return itemName || hud.nightfallclock$overlayMessageTime() > 0 || mc.screen instanceof ChatScreen || chatCovers(mc, text);
 	}
 
 	/**
@@ -172,16 +169,16 @@ public class NightfallClock implements ClientModInitializer {
 		if (mc.options.chatVisibility().get() == ChatVisiblity.HIDDEN) {
 			return false;
 		}
-		int guiTicks = mc.gui.hud.getGuiTicks();
+		int guiTicks = mc.gui.getGuiTicks();
 		int recent = 0;
-		for (GuiMessage.Line line : ((ChatComponentAccessor) mc.gui.hud.getChat()).nightfallclock$trimmedMessages()) {
+		for (GuiMessage.Line line : ((ChatComponentAccessor) mc.gui.getChat()).nightfallclock$trimmedMessages()) {
 			if (guiTicks - line.addedTime() >= CHAT_FADE_TICKS) {
 				break;
 			}
 			recent++;
 		}
 		// Unfocused chat shows only so many lines, however many arrived recently.
-		recent = Math.min(recent, mc.gui.hud.getChat().getLinesPerPage());
+		recent = Math.min(recent, mc.gui.getChat().getLinesPerPage());
 		if (recent == 0) {
 			return false;
 		}
@@ -203,13 +200,13 @@ public class NightfallClock implements ClientModInitializer {
 
 	/**
 	 * Centred just above the hearts and hunger, where vanilla shows the held item's name after
-	 * you switch slots (Hud.extractSelectedItemName: 59 above the bottom, 14 lower in creative
+	 * you switch slots (Gui.renderSelectedItemName: 59 above the bottom, 14 lower in creative
 	 * and spectator, which have no health bars). Drawn by this mod rather than through the
 	 * action bar, which HUD mods (such as Coords HUD) overwrite. With stepAround, it moves up
 	 * past the item name or an action-bar message (72 above the bottom) while they show.
 	 */
-	private static void aboveHotbar(GuiGraphicsExtractor graphics, Minecraft mc, Component text, int colour, boolean stepAround) {
-		HudAccessor hud = (HudAccessor) mc.gui.hud;
+	private static void aboveHotbar(GuiGraphics graphics, Minecraft mc, Component text, int colour, boolean stepAround) {
+		HudAccessor hud = (HudAccessor) mc.gui;
 		int bottom = graphics.guiHeight();
 		int line = mc.font.lineHeight + 3;
 		int y = clockLineY(mc, bottom);
@@ -226,11 +223,24 @@ public class NightfallClock implements ClientModInitializer {
 		// Like vanilla's item name: a dark backdrop when the player has Text Background on
 		// (Accessibility settings), so it stays readable over snow and sky.
 		int width = mc.font.width(text);
-		graphics.textWithBackdrop(mc.font, text, (graphics.guiWidth() - width) / 2, y, width, colour);
+		textWithBackdrop(graphics, mc, text, (graphics.guiWidth() - width) / 2, y, width, colour);
+	}
+
+	/**
+	 * Text with the dark backdrop vanilla puts behind the held item's name when Text Background is on
+	 * (Accessibility settings). GuiGraphics has no helper for it in 1.20.1, so this is vanilla's own
+	 * two steps from Gui.renderSelectedItemName: a box tinted by the colour, then the text.
+	 */
+	private static void textWithBackdrop(GuiGraphics graphics, Minecraft mc, Component text, int x, int y, int width, int colour) {
+		int backdrop = mc.options.getBackgroundColor(0.0F);
+		if (backdrop != 0) {
+			graphics.fill(x - 2, y - 2, x + width + 2, y + mc.font.lineHeight + 2, FastColor.ARGB32.multiply(backdrop, colour));
+		}
+		graphics.drawString(mc.font, text, x, y, colour);
 	}
 
 	/** In a corner of the screen. */
-	private static void inCorner(GuiGraphicsExtractor graphics, Minecraft mc, Config.Position corner, Component text, int colour,
+	private static void inCorner(GuiGraphics graphics, Minecraft mc, Config.Position corner, Component text, int colour,
 			boolean chatOpen) {
 		int width = mc.font.width(text);
 		// On narrow screens a bottom corner would run into the hotbar, so use the top one.
@@ -242,7 +252,7 @@ public class NightfallClock implements ClientModInitializer {
 		int x = corner.right() ? graphics.guiWidth() - width - MARGIN : MARGIN;
 		int y = !top ? graphics.guiHeight() - mc.font.lineHeight - MARGIN : corner.right() ? belowEffects(mc) : MARGIN;
 		// The same dark backdrop as above the hotbar, when the player has Text Background on.
-		graphics.textWithBackdrop(mc.font, text, x, y, width, colour);
+		textWithBackdrop(graphics, mc, text, x, y, width, colour);
 	}
 
 	/**
@@ -251,15 +261,15 @@ public class NightfallClock implements ClientModInitializer {
 	 * Icons are hidden while a screen that lists effects itself (the inventory) is open.
 	 */
 	private static int belowEffects(Minecraft mc) {
-		Screen screen = mc.gui.screen();
-		if (mc.player == null || (screen != null && screen.showsActiveEffects())) {
+		Screen screen = mc.screen;
+		if (mc.player == null || (screen instanceof EffectRenderingInventoryScreen<?> inventory && inventory.canSeeEffects())) {
 			return MARGIN;
 		}
 		boolean beneficial = false;
 		boolean harmful = false;
 		for (MobEffectInstance effect : mc.player.getActiveEffects()) {
 			if (effect.showIcon()) {
-				if (effect.getEffect().value().isBeneficial()) {
+				if (effect.getEffect().isBeneficial()) {
 					beneficial = true;
 				} else {
 					harmful = true;
@@ -294,7 +304,7 @@ public class NightfallClock implements ClientModInitializer {
 			}
 			boolean busy = lineBusy(mc, textFor(time));
 			clockShown = busy || duskTicksLeft > 0 ? 0 : Math.min(FADE_TICKS, clockShown + 1);
-			actionBarTicks = ((HudAccessor) mc.gui.hud).nightfallclock$overlayMessageTime() > 0 ? actionBarTicks + 1 : 0;
+			actionBarTicks = ((HudAccessor) mc.gui).nightfallclock$overlayMessageTime() > 0 ? actionBarTicks + 1 : 0;
 		}
 		if (DUSK.update(mc.level, time.minute()) && Config.duskWarning) {
 			duskTicksLeft = DUSK_TICKS;
@@ -304,20 +314,13 @@ public class NightfallClock implements ClientModInitializer {
 	/** The overworld day's position, or null when this dimension has no day cycle (the Nether, the End). */
 	record DayTime(int day, int minute) {
 		static DayTime of(ClientLevel level) {
-			if (level != dayLevel) {
-				// Looked up once per world (a new world brings its own registries), not every frame.
-				dayLevel = level;
-				Timeline found = level.registryAccess().lookupOrThrow(Registries.TIMELINE)
-						.get(Timelines.OVERWORLD_DAY).map(holder -> holder.value()).orElse(null);
-				dayTimeline = found == null || found.periodTicks().isEmpty()
-						|| level.dimensionType().timelines().stream().noneMatch(h -> h.value() == found) ? null : found;
-			}
-			Timeline timeline = dayTimeline;
-			if (timeline == null) {
+			// 1.20.1 has no timelines: a dimension with a fixed time (the Nether, the End) has no day.
+			if (level.dimensionType().hasFixedTime()) {
 				return null;
 			}
-			float sunAngle = level.environmentAttributes().getDimensionValue(EnvironmentAttributes.SUN_ANGLE);
-			return new DayTime(timeline.getPeriodCount(level.clockManager()) + 1, minuteFromSun(sunAngle));
+			// getSunAngle is in radians, 0 at noon, after the same easing as above.
+			float sunAngle = (float) Math.toDegrees(level.getSunAngle(1.0F));
+			return new DayTime((int) (level.getDayTime() / 24000L) + 1, minuteFromSun(sunAngle));
 		}
 
 		/** The vanilla clock time (minutes after midnight) at which the sun stands at this angle. */
