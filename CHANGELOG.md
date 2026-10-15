@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Nightfall Clock now comes for Minecraft 1.20.1, on Fabric and on Forge. It's the same clock as 0.2.1: the day and time above your hotbar, gold from 6:00 PM, "The sun's getting real low" when dusk arrives as you play, and the same settings (position, 12- or 24-hour time, Text Background).
+- On 1.20.1 the settings are on Mod Menu's button for Fabric and on the Mods screen's Config button for Forge.
+
 ## 0.2.1
 
 - Nightfall Clock no longer hides itself when Espresso Flavoured Core is installed: Espresso's own clock is gone, and Nightfall Clock is the clock in its pack.
