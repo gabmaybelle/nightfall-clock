@@ -1,0 +1,79 @@
+plugins {
+	id 'net.neoforged.moddev.legacyforge' version "${moddev_version}"
+}
+
+repositories {
+	maven { url = 'https://maven.minecraftforge.net' }
+}
+
+// The common sources are compiled straight into this jar, the same as the Fabric side.
+sourceSets.main {
+	java.srcDir project(':common').file('src/main/java')
+	resources.srcDir project(':common').file('src/main/resources')
+}
+// And the shared unit tests run here too, so they prove the common code on Forge's classes as well.
+sourceSets.test {
+	java.srcDir project(':common').file('src/test/java')
+}
+
+legacyForge {
+	version = "${project.minecraft_version}-${project.forge_version}"
+
+	mods {
+		"nightfallclock" {
+			sourceSet sourceSets.main
+		}
+	}
+
+	runs {
+		client {
+			client()
+		}
+	}
+
+	// Puts Minecraft and Forge on the test classpath (the legacy plugin has no unitTest block), so the
+	// tests that use the game's classes, such as Component, run.
+	addModdingDependenciesTo sourceSets.test
+}
+
+dependencies {
+	annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+	testImplementation "org.junit.jupiter:junit-jupiter:5.12.2"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
+}
+
+mixin {
+	add sourceSets.main, 'nightfallclock.refmap.json'
+	config 'nightfallclock.mixins.json'
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("META-INF/mods.toml") {
+		expand "version": version
+	}
+	// Forge reads the mixin refmap by name from the config; Fabric's Loom adds its own, so only
+	// this jar's copy of the shared mixin config names one.
+	filesMatching("nightfallclock.mixins.json") {
+		filter { it.replace('"required": true,', '"required": true,\n\t"refmap": "nightfallclock.refmap.json",') }
+	}
+}
+
+// Forge's tools run on Java 17, which Gradle must be able to find (see CLAUDE.md); the code itself is
+// compiled by the newer JDK for Java 17 (release 17 in the root build.gradle).
+java {
+	toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+jar {
+	manifest.attributes(["MixinConfigs": "nightfallclock.mixins.json"])
+}
+
+tasks.named('jar') { archiveBaseName = "${rootProject.name}-forge" }
+tasks.named('sourcesJar') { archiveBaseName = "${rootProject.name}-forge" }

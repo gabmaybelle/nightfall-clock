@@ -17,10 +17,10 @@
 	"environment": "client",
 	"entrypoints": {
 		"client": [
-			"com.gabbymaybelle.nightfallclock.NightfallClock"
+			"com.gabbymaybelle.nightfallclock.fabric.NightfallClockFabric"
 		],
 		"modmenu": [
-			"com.gabbymaybelle.nightfallclock.ModMenuIntegration"
+			"com.gabbymaybelle.nightfallclock.fabric.ModMenuIntegration"
 		]
 	},
 	"mixins": [

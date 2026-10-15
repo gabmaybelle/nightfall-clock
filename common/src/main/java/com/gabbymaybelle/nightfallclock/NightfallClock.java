@@ -3,9 +3,6 @@ package com.gabbymaybelle.nightfallclock;
 import com.gabbymaybelle.nightfallclock.mixin.ChatComponentAccessor;
 import com.gabbymaybelle.nightfallclock.mixin.HudAccessor;
 import java.util.Locale;
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.GuiMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -31,9 +28,10 @@ import org.slf4j.LoggerFactory;
  * night, still gets 6:00 PM when the sun looks like vanilla's 6:00 PM.
  *
  * Each part can be switched off, the clock can move to a corner and show 12- or
- * 24-hour time (settings screen through Mod Menu, or config/nightfallclock.properties).
+ * 24-hour time (settings screen through Mod Menu or Forge's Mods screen, or
+ * config/nightfallclock.properties).
  */
-public class NightfallClock implements ClientModInitializer {
+public class NightfallClock {
 	public static final String MOD_ID = "nightfallclock";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
@@ -90,13 +88,6 @@ public class NightfallClock implements ClientModInitializer {
 	/** How long vanilla's action bar has been showing without a break. */
 	private static int actionBarTicks = 0;
 
-	@Override
-	public void onInitializeClient() {
-		Config.load();
-		HudRenderCallback.EVENT.register(NightfallClock::extract);
-		ClientTickEvents.END_CLIENT_TICK.register(NightfallClock::tick);
-	}
-
 	/** The clock text for this time, made again only when the time or the format changes. */
 	private static Component textFor(DayTime time) {
 		boolean twelveHour = Config.timeFormat.twelveHour();
@@ -113,7 +104,8 @@ public class NightfallClock implements ClientModInitializer {
 		return duskTicksLeft > 0;
 	}
 
-	private static void extract(GuiGraphics graphics, float tickDelta) {
+	/** Draws the clock and the dusk message; each loader calls this once a frame from its own HUD event. */
+	public static void extract(GuiGraphics graphics, float tickDelta) {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.level == null || mc.options.hideGui || mc.options.renderDebug) {
 			return;
@@ -286,7 +278,8 @@ public class NightfallClock implements ClientModInitializer {
 		return MARGIN;
 	}
 
-	private static void tick(Minecraft mc) {
+	/** Once a client tick, from each loader's own tick event. */
+	public static void tick(Minecraft mc) {
 		if (mc.level == null || mc.player == null) {
 			DUSK.update(null, -1);
 			duskTicksLeft = 0;

@@ -1,0 +1,30 @@
+// Loader-neutral code and data. This project is compiled on its own so a Fabric or Forge import
+// can't sneak in: only Minecraft, Mixin and the JDK are on the classpath. Nothing here ships as a
+// jar; `fabric` and `forge` compile these sources into theirs.
+plugins {
+	id 'fabric-loom' version "${loom_version}"
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	// 1.20.1 has no unobfuscated game: the official Mojang names, applied by Loom.
+	mappings loom.officialMojangMappings()
+	// Only for the Mixin annotations and the launch-side classes they need. No Fabric API here.
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Plain unit tests (the dusk rule, reading the time from the sun): `./gradlew :common:test`.
+	testImplementation "org.junit.jupiter:junit-jupiter:5.12.2"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
+}
+
+loom {
+	mods {
+		"nightfallclock" {
+			sourceSet sourceSets.main
+		}
+	}
+}

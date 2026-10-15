@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "MIT"
+issueTrackerURL = "https://github.com/gabmaybelle/nightfall-clock/issues"
+
+[[mods]]
+modId = "nightfallclock"
+version = "${version}"
+displayName = "Nightfall Clock"
+authors = "Gabby"
+displayURL = "https://github.com/gabmaybelle/nightfall-clock"
+logoFile = "assets/nightfallclock/icon.png"
+description = '''A day counter and clock that follows where the sun really is, so it stays right on longer days, plus a heads-up above the hotbar when the sun starts to set.'''
+
+[[dependencies.nightfallclock]]
+modId = "forge"
+mandatory = true
+versionRange = "[47,)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.nightfallclock]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.20.1,1.21)"
+ordering = "NONE"
+side = "CLIENT"

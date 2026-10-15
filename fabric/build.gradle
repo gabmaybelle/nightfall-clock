@@ -1,0 +1,51 @@
+plugins {
+	id 'fabric-loom' version "${loom_version}"
+}
+
+repositories {
+	maven { url = 'https://maven.terraformersmc.com/releases/' }
+}
+
+// The common sources are compiled straight into this jar (no common jar to bundle), so the
+// Fabric mod is one file and Loom can add the mixin refmap the common mixins need.
+sourceSets.main {
+	java.srcDir project(':common').file('src/main/java')
+	resources.srcDir project(':common').file('src/main/resources')
+}
+
+loom {
+	// Named for this mod: the default, fabric-refmap.json, would clash with any other mod built the same way.
+	mixin {
+		defaultRefmapName = "nightfallclock-refmap.json"
+	}
+	mods {
+		"nightfallclock" {
+			sourceSet sourceSets.main
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	// 1.20.1 has no unobfuscated game: the official Mojang names, applied by Loom.
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	// Optional: only for the settings button in Mod Menu.
+	modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+// Loom writes the file players get with remapJar, so that is the name that counts.
+tasks.named('jar') { archiveBaseName = "${rootProject.name}-fabric" }
+tasks.named('sourcesJar') { archiveBaseName = "${rootProject.name}-fabric" }
+tasks.named('remapJar') { archiveBaseName = "${rootProject.name}-fabric" }
+tasks.named('remapSourcesJar') { archiveBaseName = "${rootProject.name}-fabric" }
