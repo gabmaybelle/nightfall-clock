@@ -6,12 +6,8 @@ import java.util.Locale;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.OptionsList;
-import net.minecraft.client.gui.screens.OptionsSubScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -20,32 +16,17 @@ import net.minecraft.network.chat.Component;
  * the screen closes.
  */
 public class SettingsScreen extends OptionsSubScreen {
-	private OptionsList list;
-
 	public SettingsScreen(Screen parent) {
 		super(parent, Minecraft.getInstance().options, Component.translatable("nightfallclock.options.title"));
 	}
 
 	@Override
-	protected void init() {
-		// 1.20.1 has no addOptions hook: the screen builds its own list and Done button.
-		list = new OptionsList(minecraft, width, height, 32, height - 32, 25);
-		list.addSmall(new OptionInstance<?>[] {
+	protected void addOptions() {
+		list.addSmall(
 				toggle("clock", Config.clock, v -> Config.clock = v),
 				toggle("duskWarning", Config.duskWarning, v -> Config.duskWarning = v),
 				choice("position", Config.Position.values(), Config.position, v -> Config.position = v),
-				choice("timeFormat", Config.TimeFormat.values(), Config.timeFormat, v -> Config.timeFormat = v) });
-		addWidget(list);
-		addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose())
-				.bounds(width / 2 - 100, height - 27, 200, 20).build());
-	}
-
-	@Override
-	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-		renderBackground(graphics);
-		list.render(graphics, mouseX, mouseY, partialTick);
-		graphics.drawCenteredString(font, title, width / 2, 5, 0xFFFFFF);
-		super.render(graphics, mouseX, mouseY, partialTick);
+				choice("timeFormat", Config.TimeFormat.values(), Config.timeFormat, v -> Config.timeFormat = v));
 	}
 
 	@Override

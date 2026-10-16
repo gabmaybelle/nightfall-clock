@@ -15,7 +15,7 @@ pluginManagement {
 
 rootProject.name = 'nightfallclock'
 
-// `common` holds everything that doesn't care which loader it runs on. `fabric` and `forge`
+// `common` holds everything that doesn't care which loader it runs on. `fabric` and `neoforge`
 // compile those sources straight into their own jars (see their build.gradle), so there is one
 // codebase and two mod files.
-include 'common', 'fabric', 'forge'
+include 'common', 'fabric', 'neoforge'

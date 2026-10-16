@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  * night, still gets 6:00 PM when the sun looks like vanilla's 6:00 PM.
  *
  * Each part can be switched off, the clock can move to a corner and show 12- or
- * 24-hour time (settings screen through Mod Menu or Forge's Mods screen, or
+ * 24-hour time (settings screen through Mod Menu or NeoForge's Mods screen, or
  * config/nightfallclock.properties).
  */
 public class NightfallClock {
@@ -63,7 +63,7 @@ public class NightfallClock {
 
 	/**
 	 * Vanilla's sun angle (degrees, 0 at noon) at each minute after noon; rises steadily to 360.
-	 * The same curve as DimensionType.timeOfDay in 1.20.1, which eases the sun so it lingers near
+	 * The same curve as DimensionType.timeOfDay in 1.21.1, which eases the sun so it lingers near
 	 * the horizon: d is how far through the day since noon, and the sun sits at (2d + e) / 3 of a
 	 * turn with e = 0.5 - cos(d * pi) / 2.
 	 */
@@ -105,9 +105,9 @@ public class NightfallClock {
 	}
 
 	/** Draws the clock and the dusk message; each loader calls this once a frame from its own HUD event. */
-	public static void extract(GuiGraphics graphics, float tickDelta) {
+	public static void extract(GuiGraphics graphics) {
 		Minecraft mc = Minecraft.getInstance();
-		if (mc.level == null || mc.options.hideGui || mc.options.renderDebug) {
+		if (mc.level == null || mc.options.hideGui || mc.getDebugOverlay().showDebugScreen()) {
 			return;
 		}
 		DayTime time = DayTime.of(mc.level);
@@ -220,7 +220,7 @@ public class NightfallClock {
 
 	/**
 	 * Text with the dark backdrop vanilla puts behind the held item's name when Text Background is on
-	 * (Accessibility settings). GuiGraphics has no helper for it in 1.20.1, so this is vanilla's own
+	 * (Accessibility settings). GuiGraphics has no helper for it in 1.21.1, so this is vanilla's own
 	 * two steps from Gui.renderSelectedItemName: a box tinted by the colour, then the text.
 	 */
 	private static void textWithBackdrop(GuiGraphics graphics, Minecraft mc, Component text, int x, int y, int width, int colour) {
@@ -261,7 +261,7 @@ public class NightfallClock {
 		boolean harmful = false;
 		for (MobEffectInstance effect : mc.player.getActiveEffects()) {
 			if (effect.showIcon()) {
-				if (effect.getEffect().isBeneficial()) {
+				if (effect.getEffect().value().isBeneficial()) {
 					beneficial = true;
 				} else {
 					harmful = true;
@@ -307,7 +307,7 @@ public class NightfallClock {
 	/** The overworld day's position, or null when this dimension has no day cycle (the Nether, the End). */
 	record DayTime(int day, int minute) {
 		static DayTime of(ClientLevel level) {
-			// 1.20.1 has no timelines: a dimension with a fixed time (the Nether, the End) has no day.
+			// 1.21.1 has no timelines: a dimension with a fixed time (the Nether, the End) has no day.
 			if (level.dimensionType().hasFixedTime()) {
 				return null;
 			}

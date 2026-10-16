@@ -27,7 +27,7 @@ loom {
 
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	// 1.20.1 has no unobfuscated game: the official Mojang names, applied by Loom.
+	// 1.21.1 ships obfuscated: the code is written in the official Mojang names and Loom remaps.
 	mappings loom.officialMojangMappings()
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"

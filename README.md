@@ -2,7 +2,7 @@
 
 A small clock just above your hotbar, and a heads-up when the sun starts to set.
 
-This is the Minecraft 1.20.1 version, for Fabric and Forge. The 26.2 and 26.3 version (Fabric) is on the `main` branch.
+This is the Minecraft 1.21.1 version, for Fabric and NeoForge. The 26.2 and 26.3 version (Fabric) is on the `main` branch, and the 1.20.1 version (Fabric and Forge) on the `1.20.1` branch.
 
 I kept getting caught out by the dark, halfway through a build or a long way from home. Nightfall Clock shows the day and time where you'd glance anyway, and an hour before night it tells you: "The sun's getting real low".
 
@@ -24,7 +24,7 @@ Nightfall Clock reads the time from where the sun actually is, the same way Mine
 
 ## Settings
 
-On Fabric, with [Mod Menu](https://modrinth.com/mod/modmenu) installed, open Mods, pick Nightfall Clock and click the settings button. On Forge, open Mods, pick Nightfall Clock and click Config. Changes show straight away.
+On Fabric, with [Mod Menu](https://modrinth.com/mod/modmenu) installed, open Mods, pick Nightfall Clock and click the settings button. On NeoForge, open Mods, pick Nightfall Clock and click Config. Changes show straight away.
 
 - **Clock:** on or off.
 - **Dusk Warning:** on or off.
@@ -42,23 +42,23 @@ If you play with Text Background set to Everywhere (Options, Accessibility), the
 
 ## Requirements
 
-- Minecraft 1.20.1, and Java 17
-- On Fabric: Fabric Loader 0.15 or newer and [Fabric API](https://modrinth.com/mod/fabric-api) 0.92 or newer
-- On Forge: Forge 47 or newer
+- Minecraft 1.21.1, and Java 21
+- On Fabric: Fabric Loader 0.15 or newer and [Fabric API](https://modrinth.com/mod/fabric-api) 0.116 or newer
+- On NeoForge: NeoForge 21.1 or newer
 
 Optional on Fabric: [Mod Menu](https://modrinth.com/mod/modmenu), for the settings screen.
 
 ## Building
 
-Requires JDK 25 to run Gradle, and a Java 17 install that Gradle can find (Forge's build tools run on it):
+Requires JDK 21 or newer to run Gradle:
 
 ```
-./gradlew build -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64
+./gradlew build
 ```
 
-(Or `-Dorg.gradle.java.installations.paths=<path to Java 17>`.) The two jars are written to `fabric/build/libs/` and `forge/build/libs/`, named `nightfallclock-fabric-<version>.jar` and `nightfallclock-forge-<version>.jar`. The first Forge build takes a few minutes. The icon is drawn by `node tools/generate-icon.js`.
+The two jars are written to `fabric/build/libs/` and `neoforge/build/libs/`, named `nightfallclock-fabric-<version>.jar` and `nightfallclock-neoforge-<version>.jar`. The first NeoForge build takes a few minutes. The icon is drawn by `node tools/generate-icon.js`.
 
-The code is in three parts: `common` (the clock, the dusk warning and the settings screen), and a small `fabric` and `forge` part that start it. `./gradlew build` runs the unit tests in `common` and again on Forge's game classes. 1.20.1 has no Fabric in-game test, so the finished jar is checked in a real game by hand.
+The code is in three parts: `common` (the clock, the dusk warning and the settings screen), and a small `fabric` and `neoforge` part that start it. `./gradlew build` runs the unit tests in `common` and again on NeoForge's game classes. 1.21.1 has no Fabric in-game test, so the finished jar is checked in a real game by hand.
 
 ## Licence
 

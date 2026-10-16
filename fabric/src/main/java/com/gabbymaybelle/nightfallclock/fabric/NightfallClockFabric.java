@@ -12,7 +12,7 @@ public class NightfallClockFabric implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		Config.load(FabricLoader.getInstance().getConfigDir());
-		HudRenderCallback.EVENT.register(NightfallClock::extract);
+		HudRenderCallback.EVENT.register((graphics, deltaTracker) -> NightfallClock.extract(graphics));
 		ClientTickEvents.END_CLIENT_TICK.register(NightfallClock::tick);
 	}
 }
