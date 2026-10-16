@@ -83,7 +83,7 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 		Path file = FabricLoader.getInstance().getConfigDir().resolve(NightfallClock.MOD_ID + ".properties");
 		try {
 			Files.writeString(file, "clock=ture\nduskWarning= FALSE \nfutureSetting=hello\n");
-			Config.load();
+			Config.load(FabricLoader.getInstance().getConfigDir());
 			if (!Config.clock) {
 				throw new AssertionError("A typo (\"ture\") switched the clock off instead of keeping its default");
 			}
@@ -99,7 +99,7 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 			}
 			String complete = "# a note added by hand\n" + written;
 			Files.writeString(file, complete);
-			Config.load();
+			Config.load(FabricLoader.getInstance().getConfigDir());
 			if (!Files.readString(file).equals(complete)) {
 				throw new AssertionError("Loading a complete settings file rewrote it");
 			}

@@ -13,17 +13,17 @@ import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * Settings in {@code config/nightfallclock.properties}, also editable in game through
- * Mod Menu. Missing keys get their defaults, and the file is only written when it's missing a
+ * Mod Menu or NeoForge's Mods screen. Missing keys get their defaults, and the file is only written when it's missing a
  * setting (so players can see what exists) or the settings screen changes one; a value that
  * can't be read keeps its default and says so in the log. Settings this version doesn't know are
  * kept. Changes apply straight away.
  */
 public final class Config {
-	private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve(NightfallClock.MOD_ID + ".properties");
+	/** config/nightfallclock.properties; set by {@link #load(Path)}, since each loader knows its config folder. */
+	private static Path file;
 
 	/** Day counter and clock, above the hotbar or in a corner. */
 	public static boolean clock = true;
@@ -77,13 +77,15 @@ public final class Config {
 	private Config() {
 	}
 
-	static void load() {
+	/** Reads the settings from {@code configDir}/nightfallclock.properties (the loader's config folder). */
+	public static void load(Path configDir) {
+		file = configDir.resolve(NightfallClock.MOD_ID + ".properties");
 		Properties props = new Properties();
-		if (Files.exists(FILE)) {
-			try (Reader reader = Files.newBufferedReader(FILE)) {
+		if (Files.exists(file)) {
+			try (Reader reader = Files.newBufferedReader(file)) {
 				props.load(reader);
 			} catch (IOException e) {
-				NightfallClock.LOGGER.warn("Nightfall Clock: couldn't read {}, using defaults", FILE, e);
+				NightfallClock.LOGGER.warn("Nightfall Clock: couldn't read {}, using defaults", file, e);
 			}
 		}
 		clock = bool(props, "clock", clock);
@@ -111,7 +113,7 @@ public final class Config {
 		props.setProperty("timeFormat", timeFormat.name().toLowerCase(Locale.ROOT));
 		// Written to a temporary file first and then swapped in, so a crash part-way through never
 		// leaves a half-written or empty settings file.
-		Path temp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
+		Path temp = file.resolveSibling(file.getFileName() + ".tmp");
 		try (Writer writer = Files.newBufferedWriter(temp)) {
 			props.store(writer, "Nightfall Clock (also in game: Mods > Nightfall Clock > settings, with Mod Menu)\n"
 					+ "clock: day and time above the hotbar (or in a corner)\n"
@@ -119,17 +121,17 @@ public final class Config {
 					+ "position: above_hotbar, top_right, top_left, bottom_right or bottom_left\n"
 					+ "timeFormat: auto, twelve_hour or twenty_four_hour (auto = your computer's region)");
 		} catch (IOException e) {
-			NightfallClock.LOGGER.warn("Nightfall Clock: couldn't write {}", FILE, e);
+			NightfallClock.LOGGER.warn("Nightfall Clock: couldn't write {}", file, e);
 			return;
 		}
 		try {
 			try {
-				Files.move(temp, FILE, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+				Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 			} catch (AtomicMoveNotSupportedException e) {
-				Files.move(temp, FILE, StandardCopyOption.REPLACE_EXISTING);
+				Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
 			}
 		} catch (IOException e) {
-			NightfallClock.LOGGER.warn("Nightfall Clock: couldn't write {}", FILE, e);
+			NightfallClock.LOGGER.warn("Nightfall Clock: couldn't write {}", file, e);
 		}
 	}
 

@@ -3,9 +3,6 @@ package com.gabbymaybelle.nightfallclock;
 import com.gabbymaybelle.nightfallclock.mixin.ChatComponentAccessor;
 import com.gabbymaybelle.nightfallclock.mixin.HudAccessor;
 import java.util.Locale;
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -16,7 +13,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.EasingType;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -36,9 +32,9 @@ import org.slf4j.LoggerFactory;
  * night, still gets 6:00 PM when the sun looks like vanilla's 6:00 PM.
  *
  * Each part can be switched off, the clock can move to a corner and show 12- or
- * 24-hour time (settings screen through Mod Menu, or config/nightfallclock.properties).
+ * 24-hour time (settings screen through Mod Menu or NeoForge's Mods screen, or config/nightfallclock.properties).
  */
-public class NightfallClock implements ClientModInitializer {
+public class NightfallClock {
 	public static final String MOD_ID = "nightfallclock";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
@@ -93,13 +89,6 @@ public class NightfallClock implements ClientModInitializer {
 	/** How long vanilla's action bar has been showing without a break. */
 	private static int actionBarTicks = 0;
 
-	@Override
-	public void onInitializeClient() {
-		Config.load();
-		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(MOD_ID, "clock"), NightfallClock::extract);
-		ClientTickEvents.END_CLIENT_TICK.register(NightfallClock::tick);
-	}
-
 	/** The clock text for this time, made again only when the time or the format changes. */
 	private static Component textFor(DayTime time) {
 		boolean twelveHour = Config.timeFormat.twelveHour();
@@ -116,7 +105,7 @@ public class NightfallClock implements ClientModInitializer {
 		return duskTicksLeft > 0;
 	}
 
-	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker delta) {
+	public static void extract(GuiGraphicsExtractor graphics, DeltaTracker delta) {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.level == null || mc.gui.hud.isHidden() || mc.getDebugOverlay().showDebugScreen()) {
 			return;
@@ -276,7 +265,7 @@ public class NightfallClock implements ClientModInitializer {
 		return MARGIN;
 	}
 
-	private static void tick(Minecraft mc) {
+	public static void tick(Minecraft mc) {
 		if (mc.level == null || mc.player == null) {
 			DUSK.update(null, -1);
 			duskTicksLeft = 0;
