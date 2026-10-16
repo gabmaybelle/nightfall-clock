@@ -11,19 +11,36 @@ sourceSets.main {
 sourceSets.test {
 	java.srcDir project(':common').file('src/test/java')
 }
+// The in-game test (src/clienttest): part of the mod only in dev runs, never in the jar.
+sourceSets {
+	clienttest {
+		compileClasspath += sourceSets.main.output
+		runtimeClasspath += sourceSets.main.output
+	}
+}
 
 neoForge {
 	version = project.neoforge_version
+	addModdingDependenciesTo(sourceSets.clienttest)
 
 	mods {
 		"nightfallclock" {
 			sourceSet sourceSets.main
+			// The same mod as the main sources, so the test can reach the package's own classes.
+			sourceSet sourceSets.clienttest
 		}
 	}
 
 	runs {
 		client {
 			client()
+		}
+		// `./gradlew :neoforge:runClientTest`: starts the game, makes a flat world, runs the checks in
+		// src/clienttest and closes. A failed check crashes the game, so the task fails. Needs a display.
+		clientTest {
+			client()
+			systemProperty 'nightfallclock.clienttest', 'true'
+			gameDirectory = project.file('build/run/clientTest')
 		}
 	}
 

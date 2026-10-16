@@ -13,7 +13,7 @@ it first, and add this session's row before ending.
   - `SettingsScreen.java`: the settings screen.
   - `mixin/HudAccessor.java` and `mixin/ChatComponentAccessor.java`: read-only accessors for vanilla fields.
 - `fabric/`: `NightfallClockFabric` (Fabric API HUD and tick events), `ModMenuIntegration` (optional, compile-only), `fabric.mod.json`, and `src/gametest/`, a separate test mod (`nightfallclock-gametest`) with a Fabric client game test.
-- `neoforge/`: `NightfallClockNeoForge` (GUI layer and tick events, settings button on the Mods screen) and `neoforge.mods.toml`.
+- `neoforge/`: `NightfallClockNeoForge` (GUI layer and tick events, settings button on the Mods screen) and `neoforge.mods.toml`, and `src/clienttest/`: the NeoForge in-game test (`ClientTest`, a small step runner, and `NightfallClockClientTest`, the same checks as the Fabric game test). It joins the mod only in dev runs, so it's never in the jar.
 - `tools/generate-icon.js`: draws `icon.png` (`node tools/generate-icon.js`).
 
 ## Build and test
@@ -23,16 +23,18 @@ Needs JDK 25.
 - `./gradlew build`: `fabric/build/libs/nightfallclock-fabric-<version>.jar` and `neoforge/build/libs/nightfallclock-neoforge-<version>.jar`.
 - `./gradlew :fabric:runClient` / `:neoforge:runClient`: a dev game with the mod.
 - `./gradlew :fabric:runClientGameTest` (Fabric only): launches the game, checks the settings file (typos, unknown settings, safe saving), opens a world and checks the accessors, the clock time at several `/time set` points, the dusk warning, the clock text in both formats and that there is no clock in the Nether. It needs a display. Screenshots go to `fabric/build/run/clientGameTest/screenshots/`.
+- `./gradlew :neoforge:runClientTest` (NeoForge): the same checks as the Fabric game test, in a fresh flat creative world. A failed check crashes the game with a report in `neoforge/build/run/clientTest/crash-reports/`, so the task fails; a watchdog stops a run that hangs for 10 minutes. Screenshots go to `neoforge/build/run/clientTest/screenshots/`.
 - For 26.3, add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3 -Pneoforge_version=26.3.0.77` to any of these.
 
 `./gradlew test` runs the unit tests (the dusk rule and reading the time from the sun) in `common` and again on NeoForge's classes; `build` runs them too.
 
-CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs the game test on each. Only the 26.2 jars are uploaded as release artifacts. Each loader's jar is what players get for both versions. The NeoForge side has no automated game test yet: it is built and unit-tested only.
+CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs both loaders' game tests on each. Only the 26.2 jars are uploaded as release artifacts. Each loader's jar is what players get for both versions.
 
 ## Gotchas
 
 - **The 26.3 game test on a virtual display.** 26.3's renderer (`com.mojang.renderpearl`, on SDL3) needs an sRGB-capable window. Xvfb's GLX has no sRGB visuals, so the game fails to make a window and then hangs instead of exiting. Fix: set `SDL_VIDEO_FORCE_EGL=1` and install `libegl1 libegl-mesa0`. CI does both, and the test step has a 10-minute timeout. 26.2 opens its window through GLFW and isn't affected.
 - **Fabric API versions are parallel per Minecraft version**, for example `0.161.0+26.2` and `0.161.0+26.3`. `fabric.mod.json` requires `>=0.161.0`, the version the mod is built against.
+- **NeoForge dev runs check more than players' games.** They run with vanilla's development checks on (`SharedConstants.IS_RUNNING_IN_IDE`); Fabric's don't. One caught reading the sun angle for the whole dimension, which the game says needs a position, so the clock reads it through the camera, as the sky does.
 - **Mixin accessors fail hard.** If vanilla renames a field they read, the game crashes on launch. Compiling won't catch it, but the game test will. Before widening the supported versions, run the game test on the new version.
 - **Copied vanilla values.** The sun easing (`timeline/day.json`, `minecraft:visual/sun_angle`, angle 0 at tick 6000, noon) and the text positions (item name 59 above the bottom, action bar 72, chat 40) are copied from vanilla. Check them when adding a Minecraft version. All of them were the same in 26.2 and 26.3.
 - **Restricted networks.** Builds need `maven.terraformersmc.com` (Mod Menu), `maven.fabricmc.net`, Maven Central and Mojang's servers. Running the game also needs `resources.download.minecraft.net` for assets. On a network that blocks the Mod Menu server, a local stub of its two API interfaces (`ConfigScreenFactory`, `ModMenuApi`), added through a Gradle init script, is enough to compile. Don't commit it.
