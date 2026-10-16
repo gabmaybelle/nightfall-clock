@@ -41,12 +41,12 @@ If you play with Text Background set to Everywhere (Options, Accessibility), the
 ## Requirements
 
 - Minecraft 26.2 or 26.3
-- Fabric Loader 0.19.5 or newer
-- [Fabric API](https://modrinth.com/mod/fabric-api)
+- Fabric: Fabric Loader 0.19.5 or newer and [Fabric API](https://modrinth.com/mod/fabric-api). Optional: [Mod Menu](https://modrinth.com/mod/modmenu), for the settings screen.
+- NeoForge: NeoForge 26.2 or newer. Nothing else; the settings are on the Mods screen's Config button.
 
-Optional: [Mod Menu](https://modrinth.com/mod/modmenu), for the settings screen.
+Pick the `fabric` or `neoforge` file for your loader.
 
-**Other versions:** Minecraft 1.20.1, on Fabric and on Forge, is on the [`1.20.1` branch](https://github.com/gabmaybelle/nightfall-clock/tree/1.20.1), with its download on the [1.20.1 release page](https://github.com/gabmaybelle/nightfall-clock/releases/tag/v0.2.1%2B1.20.1).
+**Other versions:** Minecraft 1.21.1, on Fabric and on NeoForge, is on the [`1.21.1` branch](https://github.com/gabmaybelle/nightfall-clock/tree/1.21.1), with its download on the [1.21.1 release page](https://github.com/gabmaybelle/nightfall-clock/releases/tag/v0.2.1%2B1.21.1). Minecraft 1.20.1, on Fabric and on Forge, is on the [`1.20.1` branch](https://github.com/gabmaybelle/nightfall-clock/tree/1.20.1), with its download on the [1.20.1 release page](https://github.com/gabmaybelle/nightfall-clock/releases/tag/v0.2.1%2B1.20.1).
 
 ## Building
 
@@ -56,9 +56,9 @@ Requires JDK 25.
 ./gradlew build
 ```
 
-The mod jar is written to `build/libs/nightfallclock-<version>.jar`. The icon is drawn by `node tools/generate-icon.js`.
+The jars are written to `fabric/build/libs/nightfallclock-fabric-<version>.jar` and `neoforge/build/libs/nightfallclock-neoforge-<version>.jar`. The icon is drawn by `node tools/generate-icon.js`.
 
-`./gradlew runClientGameTest` starts the game, checks the settings file (typos, unknown settings, safe saving), then opens a test world and checks the clock and dusk warning (it needs a display; on a Linux virtual display such as Xvfb, set `SDL_VIDEO_FORCE_EGL=1` for 26.3). Add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3` to build or test against 26.3.
+`./gradlew :fabric:runClientGameTest` starts the game, checks the settings file (typos, unknown settings, safe saving), then opens a test world and checks the clock and dusk warning (it needs a display; on a Linux virtual display such as Xvfb, set `SDL_VIDEO_FORCE_EGL=1` for 26.3). Add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3 -Pneoforge_version=26.3.0.77` to build or test against 26.3. There is no automated game test for the NeoForge jar yet.
 
 ## Licence
 

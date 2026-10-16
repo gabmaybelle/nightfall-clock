@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
-- Nightfall Clock now comes as a NeoForge mod as well as a Fabric one, for Minecraft 26.2 and 26.3. It looks and works the same. On NeoForge, the settings button is on the Mods screen, no extra mod needed.
+- Nightfall Clock now comes as a NeoForge mod as well as a Fabric one, for Minecraft 26.2 and 26.3. It looks and works the same. On NeoForge, the settings button is on the Mods screen, no extra mod needed. The Fabric file is now named `nightfallclock-fabric-0.3.0.jar`.
 
 ## 0.2.1
 
