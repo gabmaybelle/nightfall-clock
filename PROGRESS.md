@@ -6,7 +6,7 @@ which checks fail, code put back), what was learned, and what was deliberately n
 
 ## Where things stand
 
-- **Done:** Nightfall Clock 0.3.0 (Fabric and NeoForge; not released yet): the clock above the hotbar and the dusk warning, text backgrounds in the corners, 12-hour time where the region writes it that way, no false warning on server networks; unit tests and an in-game test on 26.2 and 26.3, run by CI on every push.
+- **Done:** Nightfall Clock 0.3.1 (Fabric and NeoForge, 26.2 and 26.3; 0.3.0 released, 0.3.1 being released): the clock above the hotbar and the dusk warning, text backgrounds in the corners, 12-hour time where the region writes it that way, no false warning on server networks; unit tests and an in-game test on 26.2 and 26.3, run by CI on every push, for both the Fabric and the NeoForge jar. 0.3.1: the clock reads the sun the way the sky does.
 - **Broken:** Nothing known as of this writing (not re-verified).
 - **Next:** The October 2026 review plan in CLAUDE.md lists what is still open.
 
@@ -14,6 +14,7 @@ which checks fail, code put back), what was learned, and what was deliberately n
 
 | Date | Session | What happened |
 | --- | --- | --- |
+| 2026-10-16 | Release prep | Version 0.3.1: the changelog's Unreleased line (the clock reads the sun through the camera, as the sky does) becomes 0.3.1. No code change in this step; the fix and the NeoForge in-game test were merged before it, with CI green on 26.2 and 26.3 for both jars. |
 | 2026-10-16 | NeoForge test proof | The NeoForge in-game test now names its world with the time, so a run never reopens a world an earlier run left in the same game folder (a 26.3 run once reopened a 26.2 world and failed with no day cycle). Proof run: with the dusk warning switched off the NeoForge test failed ("timed out waiting for the dusk warning while playing through 6:00 PM"); code put back, the test passes again on 26.2 and 26.3. Not merged. |
 | 2026-10-16 | Release prep | Version 0.3.0 and its changelog; README requirements, other-versions links and build commands brought up to date for the Fabric and NeoForge jars. No code change. Not released. |
 | 2026-10-16 | NeoForge | `main` restructured into `common` (shared code, unit tests), `fabric` and `neoforge`, on branch `multiloader-26.x`, the same layout as the 1.21.1 branch. Both jars build against 26.2. 11 unit tests pass (8 + 3, in `common` and again on NeoForge). The Fabric game test passes on 26.2 and 26.3; the NeoForge jar was loaded in a world on 26.2 and 26.3 and the clock showed above the hotbar. No automated NeoForge game test yet. Not done: release, version bump. |

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1
 
 - The clock reads the sun where you are, the same way the sky does. In plain Minecraft it reads just the same; in packs where the sun depends on where you are, it now matches the sky you see.
 
