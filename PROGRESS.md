@@ -14,6 +14,7 @@ which checks fail, code put back), what was learned, and what was deliberately n
 
 | Date | Session | What happened |
 | --- | --- | --- |
+| 2026-10-16 | NeoForge test proof | The NeoForge in-game test now names its world with the time, so a run never reopens a world an earlier run left in the same game folder (a 26.3 run once reopened a 26.2 world and failed with no day cycle). Proof run: with the dusk warning switched off the NeoForge test failed ("timed out waiting for the dusk warning while playing through 6:00 PM"); code put back, the test passes again on 26.2 and 26.3. Not merged. |
 | 2026-10-16 | Release prep | Version 0.3.0 and its changelog; README requirements, other-versions links and build commands brought up to date for the Fabric and NeoForge jars. No code change. Not released. |
 | 2026-10-16 | NeoForge | `main` restructured into `common` (shared code, unit tests), `fabric` and `neoforge`, on branch `multiloader-26.x`, the same layout as the 1.21.1 branch. Both jars build against 26.2. 11 unit tests pass (8 + 3, in `common` and again on NeoForge). The Fabric game test passes on 26.2 and 26.3; the NeoForge jar was loaded in a world on 26.2 and 26.3 and the clock showed above the hotbar. No automated NeoForge game test yet. Not done: release, version bump. |
 | 2026-10-15 | Map | The one-job-per-mod map (Cozy Core: builder rules; Espresso Flavoured Core: the café; Spawn Gazebo, Nightfall Clock, Pocket List: one thing each; the pack: the bundle) written into CLAUDE.md, the same in every repo. No code change. |
