@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The clock reads the sun where you are, the same way the sky does. In plain Minecraft it reads just the same; in packs where the sun depends on where you are, it now matches the sky you see.
+
 ## 0.3.0
 
 - Nightfall Clock now comes as a NeoForge mod as well as a Fabric one, for Minecraft 26.2 and 26.3. It looks and works the same. On NeoForge, the settings button is on the Mods screen, no extra mod needed. The Fabric file is now named `nightfallclock-fabric-0.3.0.jar`.

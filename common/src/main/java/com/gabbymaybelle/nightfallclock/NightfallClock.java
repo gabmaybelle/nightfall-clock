@@ -305,7 +305,9 @@ public class NightfallClock {
 			if (timeline == null) {
 				return null;
 			}
-			float sunAngle = level.environmentAttributes().getDimensionValue(EnvironmentAttributes.SUN_ANGLE);
+			// Read the way the sky reads it: through the camera, where the player is. The sun angle can
+			// depend on the place (the game checks this in development runs), so this is the sun you see.
+			float sunAngle = Minecraft.getInstance().gameRenderer.mainCamera().attributeProbe().getValue(EnvironmentAttributes.SUN_ANGLE, 1.0F);
 			return new DayTime(timeline.getPeriodCount(level.clockManager()) + 1, minuteFromSun(sunAngle));
 		}
 
