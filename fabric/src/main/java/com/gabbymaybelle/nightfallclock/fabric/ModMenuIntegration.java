@@ -1,5 +1,6 @@
-package com.gabbymaybelle.nightfallclock;
+package com.gabbymaybelle.nightfallclock.fabric;
 
+import com.gabbymaybelle.nightfallclock.SettingsScreen;
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
 

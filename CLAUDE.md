@@ -1,32 +1,33 @@
 # Nightfall Clock
 
-A client-side Fabric mod for Minecraft 26.2 and 26.3: a day counter and clock above the hotbar, and "The sun's getting real low" at 6:00 PM. It reads the time from the sun's angle, not from tick counts, so it stays right on packs with longer or stretched days. See README.md for what players see.
+A client-side Fabric and NeoForge mod for Minecraft 26.2 and 26.3: a day counter and clock above the hotbar, and "The sun's getting real low" at 6:00 PM. It reads the time from the sun's angle, not from tick counts, so it stays right on packs with longer or stretched days. See README.md for what players see.
 
 `PROGRESS.md` says what's done, what's broken and what's next, with a row per session: read
 it first, and add this session's row before ending.
 
 ## Layout
 
-- `src/main/java/com/gabbymaybelle/nightfallclock/`
-  - `NightfallClock.java`: entrypoint, HUD drawing, the tick handler (dusk detection, fades), and the `DayTime` record (sun angle to clock time).
-  - `Config.java`: `config/nightfallclock.properties`, the `Position` and `TimeFormat` enums.
-  - `SettingsScreen.java` and `ModMenuIntegration.java`: settings through Mod Menu (optional, compile-only).
+- `common/src/main/java/com/gabbymaybelle/nightfallclock/`: the shared code, compiled into both jars.
+  - `NightfallClock.java`: HUD drawing, the tick handler (dusk detection, fades), and the `DayTime` record (sun angle to clock time). No loader code.
+  - `Config.java`: `config/nightfallclock.properties` (each loader passes in its config folder), the `Position` and `TimeFormat` enums.
+  - `SettingsScreen.java`: the settings screen.
   - `mixin/HudAccessor.java` and `mixin/ChatComponentAccessor.java`: read-only accessors for vanilla fields.
-- `src/gametest/`: a separate test mod (`nightfallclock-gametest`) with a Fabric client game test.
+- `fabric/`: `NightfallClockFabric` (Fabric API HUD and tick events), `ModMenuIntegration` (optional, compile-only), `fabric.mod.json`, and `src/gametest/`, a separate test mod (`nightfallclock-gametest`) with a Fabric client game test.
+- `neoforge/`: `NightfallClockNeoForge` (GUI layer and tick events, settings button on the Mods screen) and `neoforge.mods.toml`.
 - `tools/generate-icon.js`: draws `icon.png` (`node tools/generate-icon.js`).
 
 ## Build and test
 
 Needs JDK 25.
 
-- `./gradlew build`: jar in `build/libs/`.
-- `./gradlew runClient`: a dev game with the mod.
-- `./gradlew runClientGameTest`: launches the game, checks the settings file (typos, unknown settings, safe saving), opens a world and checks the accessors, the clock time at several `/time set` points, the dusk warning, the clock text in both formats and that there is no clock in the Nether. It needs a display. Screenshots go to `build/run/clientGameTest/screenshots/`.
-- For 26.3, add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3` to any of these.
+- `./gradlew build`: `fabric/build/libs/nightfallclock-fabric-<version>.jar` and `neoforge/build/libs/nightfallclock-neoforge-<version>.jar`.
+- `./gradlew :fabric:runClient` / `:neoforge:runClient`: a dev game with the mod.
+- `./gradlew :fabric:runClientGameTest` (Fabric only): launches the game, checks the settings file (typos, unknown settings, safe saving), opens a world and checks the accessors, the clock time at several `/time set` points, the dusk warning, the clock text in both formats and that there is no clock in the Nether. It needs a display. Screenshots go to `fabric/build/run/clientGameTest/screenshots/`.
+- For 26.3, add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3 -Pneoforge_version=26.3.0.77` to any of these.
 
-`./gradlew test` runs the unit tests (the dusk rule and reading the time from the sun); `build` runs them too.
+`./gradlew test` runs the unit tests (the dusk rule and reading the time from the sun) in `common` and again on NeoForge's classes; `build` runs them too.
 
-CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs the game test on each. Only the 26.2 jar is uploaded as the release artifact. That one jar is what players get for both versions.
+CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs the game test on each. Only the 26.2 jars are uploaded as release artifacts. Each loader's jar is what players get for both versions. The NeoForge side has no automated game test yet: it is built and unit-tested only.
 
 ## Gotchas
 

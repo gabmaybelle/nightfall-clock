@@ -1,7 +1,7 @@
 # Builds the mod on every push and pull request, so a broken build shows up straight away.
 # It builds against each Minecraft version the mod supports and runs the in-game test on
 # each (src/gametest), since a vanilla change can compile fine and still crash on launch.
-# The jar built against 26.2 (the one players get) is attached to each run under "Artifacts",
+# The Fabric and NeoForge jars built against 26.2 (the ones players get) are attached to each run under "Artifacts",
 # and each version's game-test screenshots alongside it.
 
 name: build
@@ -23,7 +23,7 @@ jobs:
           - minecraft: '26.2'
             gradle_args: ''
           - minecraft: '26.3'
-            gradle_args: '-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3'
+            gradle_args: '-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3 -Pneoforge_version=26.3.0.77'
     name: build (Minecraft ${{ matrix.minecraft }})
     steps:
       - name: checkout repository
@@ -47,17 +47,19 @@ jobs:
         env:
           SDL_VIDEO_FORCE_EGL: '1'
         timeout-minutes: 10
-        run: xvfb-run -a ./gradlew runClientGameTest ${{ matrix.gradle_args }}
+        run: xvfb-run -a ./gradlew :fabric:runClientGameTest ${{ matrix.gradle_args }}
       - name: capture game test screenshots
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: Game test screenshots (Minecraft ${{ matrix.minecraft }})
-          path: build/run/clientGameTest/screenshots/
+          path: fabric/build/run/clientGameTest/screenshots/
           if-no-files-found: ignore
       - name: capture build artifacts
         if: matrix.minecraft == '26.2'
         uses: actions/upload-artifact@v7
         with:
           name: Artifacts
-          path: build/libs/
+          path: |
+            fabric/build/libs/
+            neoforge/build/libs/

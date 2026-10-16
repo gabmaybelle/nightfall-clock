@@ -1,0 +1,57 @@
+plugins {
+	id 'net.neoforged.moddev' version "${moddev_version}"
+}
+
+// The common sources are compiled straight into this jar, the same as the Fabric side.
+sourceSets.main {
+	java.srcDir project(':common').file('src/main/java')
+	resources.srcDir project(':common').file('src/main/resources')
+}
+// And the shared unit tests run here too, so they prove the common code on NeoForge's classes as well.
+sourceSets.test {
+	java.srcDir project(':common').file('src/test/java')
+}
+
+neoForge {
+	version = project.neoforge_version
+
+	mods {
+		"nightfallclock" {
+			sourceSet sourceSets.main
+		}
+	}
+
+	runs {
+		client {
+			client()
+		}
+	}
+
+	// Puts Minecraft and NeoForge on the test classpath, so the tests that use the game's classes,
+	// such as Component, run.
+	unitTest {
+		enable()
+		testedMod = mods.nightfallclock
+	}
+}
+
+dependencies {
+	testImplementation "org.junit.jupiter:junit-jupiter:5.12.2"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("META-INF/neoforge.mods.toml") {
+		expand "version": version
+	}
+}
+
+tasks.named('jar') { archiveBaseName = "${rootProject.name}-neoforge" }
+tasks.named('sourcesJar') { archiveBaseName = "${rootProject.name}-neoforge" }

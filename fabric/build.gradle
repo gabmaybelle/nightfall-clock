@@ -1,0 +1,53 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+repositories {
+	maven { url = 'https://maven.terraformersmc.com/releases/' }
+}
+
+// The common sources are compiled straight into this jar (no common jar to bundle), so the
+// Fabric mod is one file.
+sourceSets.main {
+	java.srcDir project(':common').file('src/main/java')
+	resources.srcDir project(':common').file('src/main/resources')
+}
+
+fabricApi {
+	// An in-game test mod in src/gametest: ./gradlew :fabric:runClientGameTest
+	configureTests {
+		createSourceSet = true
+		modId = "nightfallclock-gametest"
+		enableGameTests = false
+		enableClientGameTests = true
+	}
+}
+
+loom {
+	mods {
+		"nightfallclock" {
+			sourceSet sourceSets.main
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	// Optional: only for the settings button in Mod Menu.
+	compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+// nightfallclock-fabric-<version>.jar, the name players download.
+tasks.named('jar') { archiveBaseName = "${rootProject.name}-fabric" }
+tasks.named('sourcesJar') { archiveBaseName = "${rootProject.name}-fabric" }

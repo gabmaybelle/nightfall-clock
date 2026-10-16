@@ -22,7 +22,7 @@ Nightfall Clock reads the time from where the sun actually is, the same way Mine
 
 ## Settings
 
-With [Mod Menu](https://modrinth.com/mod/modmenu) installed, open Mods, pick Nightfall Clock and click the settings button. Changes show straight away.
+On Fabric, with [Mod Menu](https://modrinth.com/mod/modmenu) installed, open Mods, pick Nightfall Clock and click the settings button. On NeoForge, open Mods, pick Nightfall Clock and click Config. Changes show straight away.
 
 - **Clock:** on or off.
 - **Dusk Warning:** on or off.

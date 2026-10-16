@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Nightfall Clock now comes as a NeoForge mod as well as a Fabric one, for Minecraft 26.2 and 26.3. It looks and works the same. On NeoForge, the settings button is on the Mods screen, no extra mod needed.
+
 ## 0.2.1
 
 - Nightfall Clock no longer hides itself when Espresso Flavoured Core is installed: Espresso's own clock is gone, and Nightfall Clock is the clock in its pack.
