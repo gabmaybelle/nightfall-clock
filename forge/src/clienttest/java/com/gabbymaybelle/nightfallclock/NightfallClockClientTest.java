@@ -28,6 +28,8 @@ final class NightfallClockClientTest {
 		command("gamemode survival @a");
 		// Stop the day so /time set holds still (1.20.1's name for the rule).
 		command("gamerule doDaylightCycle false");
+		// Commands would fill chat, and the clock steps aside for recent chat.
+		command("gamerule sendCommandFeedback false");
 
 		run(mc -> {
 			HudAccessor hud = (HudAccessor) mc.gui;
@@ -45,6 +47,7 @@ final class NightfallClockClientTest {
 
 		// The clock steps aside for the held item's name, then comes back.
 		expectTime(NOON, 1, 12 * 60);
+		run(mc -> mc.gui.getChat().clearMessages(false));
 		waitUntil("the clock showing", 100, mc -> !NightfallClock.clockHidden());
 		command("give @a minecraft:iron_pickaxe");
 		waitUntil("the clock stepping aside for the item name", 40, mc -> NightfallClock.clockHidden());

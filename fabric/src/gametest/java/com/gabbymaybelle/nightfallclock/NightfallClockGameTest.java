@@ -25,6 +25,8 @@ public class NightfallClockGameTest implements ClientGameTest {
 			singleplayer.waitForChunksRender();
 			// Stop the day so /time set holds still (1.20.1's name for the rule).
 			singleplayer.getServer().runCommand("gamerule doDaylightCycle false");
+			// Commands would fill chat, and the clock steps aside for recent chat.
+			singleplayer.getServer().runCommand("gamerule sendCommandFeedback false");
 
 			context.runOnClient(mc -> {
 				HudAccessor hud = (HudAccessor) mc.gui;
@@ -42,6 +44,7 @@ public class NightfallClockGameTest implements ClientGameTest {
 
 			// The clock steps aside for the held item's name, then comes back.
 			expectTime(context, singleplayer, NOON, 1, 12 * 60);
+			context.runOnClient(mc -> mc.gui.getChat().clearMessages(false));
 			context.waitFor(mc -> !NightfallClock.clockHidden(), 100);
 			singleplayer.getServer().runCommand("give @a minecraft:iron_pickaxe");
 			context.waitFor(mc -> NightfallClock.clockHidden(), 40);
