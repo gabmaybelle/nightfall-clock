@@ -99,7 +99,8 @@ public class NightfallClockGameTest implements ClientGameTest {
 	/** Sets the time and checks the clock reads the expected day and time (minutes after midnight). */
 	private static void expectTime(ClientGameTestContext context, TestSingleplayerContext singleplayer, int ticks, int day, int minute) {
 		singleplayer.getServer().runCommand("time set " + ticks);
-		context.waitTicks(5);
+		// This version sends the time to the client only once a second (every 20 ticks), so wait for it.
+		context.waitFor(mc -> Math.abs(mc.level.getDayTime() - ticks) < 20, 100);
 		NightfallClock.DayTime time = context.computeOnClient(mc -> NightfallClock.DayTime.of(mc.level));
 		if (time == null) {
 			throw new AssertionError("No day cycle in the overworld at time " + ticks);

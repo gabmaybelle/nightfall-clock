@@ -70,6 +70,8 @@ final class NightfallClockClientTest {
 	/** Sets the time and checks the clock reads the expected day and time (minutes after midnight). */
 	private static void expectTime(int ticks, int day, int minute) {
 		command("time set " + ticks);
+		// This version sends the time to the client only once a second (every 20 ticks), so wait for it.
+		waitUntil("the new time on the client", 100, mc -> Math.abs(mc.level.getDayTime() - ticks) < 20);
 		run(mc -> {
 			NightfallClock.DayTime time = NightfallClock.DayTime.of(mc.level);
 			check(time != null, "No day cycle in the overworld at time " + ticks);
