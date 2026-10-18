@@ -1,7 +1,8 @@
-# Builds the Fabric and NeoForge jars for Minecraft 1.21.1 on every push and pull request, and runs
-# the unit tests (the shared ones run once in common and once on NeoForge's classes). 1.21.1 has no
-# client game test, so a live check is done by hand before a release. The two jars are attached
-# to each run under "Artifacts".
+# Builds the Fabric and NeoForge jars for Minecraft 1.21.1 on every push and pull request, runs
+# the unit tests (the shared ones run once in common and once on NeoForge's classes), then runs
+# both in-game tests (Fabric's in fabric/src/gametest, NeoForge's in neoforge/src/clienttest) on a
+# virtual display. The two jars are attached to each run under "Artifacts", and the game tests'
+# screenshots alongside them.
 
 name: build
 on: [pull_request, push]
@@ -27,8 +28,30 @@ jobs:
           distribution: 'microsoft'
       - name: setup gradle (with caching)
         uses: gradle/actions/setup-gradle@v6
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
       - name: build
         run: ./gradlew build
+      - name: run game test
+        timeout-minutes: 15
+        run: xvfb-run -a ./gradlew :fabric:runClientGameTest
+      - name: run NeoForge game test
+        # A failed check crashes the game, which fails this step; the crash report is uploaded
+        # with the screenshots.
+        if: always()
+        timeout-minutes: 12
+        run: xvfb-run -a ./gradlew :neoforge:runClientTest
+      - name: capture game test screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Game test screenshots
+          path: |
+            fabric/build/run/clientGameTest/screenshots/
+            fabric/build/run/clientGameTest/crash-reports/
+            neoforge/build/run/clientTest/screenshots/
+            neoforge/build/run/clientTest/crash-reports/
+          if-no-files-found: ignore
       - name: capture build artifacts
         uses: actions/upload-artifact@v7
         with:

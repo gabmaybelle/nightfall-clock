@@ -49,3 +49,41 @@ tasks.named('jar') { archiveBaseName = "${rootProject.name}-fabric" }
 tasks.named('sourcesJar') { archiveBaseName = "${rootProject.name}-fabric" }
 tasks.named('remapJar') { archiveBaseName = "${rootProject.name}-fabric" }
 tasks.named('remapSourcesJar') { archiveBaseName = "${rootProject.name}-fabric" }
+
+// Client game tests: `./gradlew :fabric:runClientGameTest` starts a real game, creates a test
+// world and checks the clock in it, from src/gametest. Nothing there ships in the jar. Fabric's
+// client game test API doesn't exist for 1.21.1, so the harness is the test's own
+// (src/gametest/.../harness) and the run is a plain client run with the test source set as a
+// second mod.
+sourceSets {
+	gametest {
+		compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+		runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+	}
+}
+
+loom {
+	mods {
+		"nightfallclock_gametest" {
+			sourceSet sourceSets.gametest
+		}
+	}
+	runs {
+		clientGameTest {
+			client()
+			name = "Client Game Test"
+			source sourceSets.gametest
+			runDir "build/run/clientGameTest"
+			property "nightfallclock.gametest", "true"
+			programArgs "--width", "854", "--height", "480"
+			ideConfigGenerated false
+		}
+	}
+}
+
+// Every run starts with the default settings; the run folder is kept between runs otherwise.
+tasks.matching { it.name == 'runClientGameTest' }.configureEach {
+	doFirst {
+		delete file('build/run/clientGameTest/config/nightfallclock.properties')
+	}
+}

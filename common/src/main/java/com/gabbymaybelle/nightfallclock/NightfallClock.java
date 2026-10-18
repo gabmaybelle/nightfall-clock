@@ -104,6 +104,11 @@ public class NightfallClock {
 		return duskTicksLeft > 0;
 	}
 
+	/** Whether the clock above the hotbar has stepped aside for something else on its line. For the game tests. */
+	static boolean clockHidden() {
+		return clockShown == 0;
+	}
+
 	/** Draws the clock and the dusk message; each loader calls this once a frame from its own HUD event. */
 	public static void extract(GuiGraphics graphics) {
 		Minecraft mc = Minecraft.getInstance();
