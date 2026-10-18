@@ -1,0 +1,18 @@
+{
+	"schemaVersion": 1,
+	"id": "nightfallclock_gametest",
+	"version": "1.0.0",
+	"name": "Nightfall Clock game tests",
+	"environment": "*",
+	"entrypoints": {
+		"client": [
+			"com.gabbymaybelle.nightfallclock.harness.GameTestRunner"
+		],
+		"nightfallclock:gametest": [
+			"com.gabbymaybelle.nightfallclock.NightfallClockGameTest"
+		]
+	},
+	"depends": {
+		"nightfallclock": "*"
+	}
+}

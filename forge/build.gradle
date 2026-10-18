@@ -15,19 +15,36 @@ sourceSets.main {
 sourceSets.test {
 	java.srcDir project(':common').file('src/test/java')
 }
+// The in-game test (src/clienttest): part of the mod only in dev runs, never in the jar.
+sourceSets {
+	clienttest {
+		compileClasspath += sourceSets.main.output
+		runtimeClasspath += sourceSets.main.output
+	}
+}
 
 legacyForge {
 	version = "${project.minecraft_version}-${project.forge_version}"
+	addModdingDependenciesTo sourceSets.clienttest
 
 	mods {
 		"nightfallclock" {
 			sourceSet sourceSets.main
+			// The same mod as the main sources, so the test can reach the package's own classes.
+			sourceSet sourceSets.clienttest
 		}
 	}
 
 	runs {
 		client {
 			client()
+		}
+		// `./gradlew :forge:runClientTest`: starts the game, makes a flat world, runs the checks in
+		// src/clienttest and closes. A failed check crashes the game, so the task fails. Needs a display.
+		clientTest {
+			client()
+			systemProperty 'nightfallclock.clienttest', 'true'
+			gameDirectory = project.file('build/run/clientTest')
 		}
 	}
 
@@ -36,8 +53,16 @@ legacyForge {
 	addModdingDependenciesTo sourceSets.test
 }
 
+// Every test run starts with the default settings; the run folder is kept between runs otherwise.
+tasks.matching { it.name == 'runClientTest' }.configureEach {
+	doFirst {
+		delete file('build/run/clientTest/config/nightfallclock.properties')
+	}
+}
+
 dependencies {
 	annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+	clienttestAnnotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 	testImplementation "org.junit.jupiter:junit-jupiter:5.12.2"
 	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
@@ -77,3 +102,9 @@ jar {
 
 tasks.named('jar') { archiveBaseName = "${rootProject.name}-forge" }
 tasks.named('sourcesJar') { archiveBaseName = "${rootProject.name}-forge" }
+
+// The game runs (dev client, game tests) use Java 17, as players' 1.20.1 does: the Mixin of 1.20.1's
+// loaders can't read the classes of a newer Java.
+tasks.withType(JavaExec).configureEach {
+	javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
+}
