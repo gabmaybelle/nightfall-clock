@@ -48,6 +48,20 @@ processResources {
 	}
 }
 
+// `./gradlew :fabric:runClientGameTest -PvideoTour` also films the vertical Short (VideoTour), frames in
+// build/run/clientGameTest/video_tour. `-Pcottage=<file>` names a house's .mcfunction build to film at;
+// `-PvideoSize=WxH` changes the window from 1080x1440. Without -PvideoTour the game test runs as usual.
+if (project.hasProperty("videoTour")) {
+	tasks.matching { it.name == 'runClientGameTest' }.configureEach {
+		systemProperty 'nightfallclock.videoTour', 'true'
+		for (name in ['cottage', 'videoSize']) {
+			if (project.hasProperty(name)) {
+				systemProperty "nightfallclock.${name}", project.property(name).toString()
+			}
+		}
+	}
+}
+
 // nightfallclock-fabric-<version>.jar, the name players download.
 tasks.named('jar') { archiveBaseName = "${rootProject.name}-fabric" }
 tasks.named('sourcesJar') { archiveBaseName = "${rootProject.name}-fabric" }
