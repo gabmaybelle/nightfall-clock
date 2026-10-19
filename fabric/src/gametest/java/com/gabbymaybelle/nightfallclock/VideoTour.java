@@ -8,7 +8,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
@@ -19,6 +21,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -43,6 +46,8 @@ public class VideoTour implements FabricClientGameTest {
 	private final List<String> actions = new ArrayList<>();
 	private final List<String> frames = new ArrayList<>();
 	private BlockPos cottage;
+	/** Client ticks so far, logged with each frame so the assembly knows the pace. */
+	private static final AtomicInteger TICKS = new AtomicInteger();
 
 	static boolean enabled() {
 		return Boolean.getBoolean("nightfallclock.videoTour");
@@ -54,6 +59,7 @@ public class VideoTour implements FabricClientGameTest {
 			return;
 		}
 		ctx = context;
+		ClientTickEvents.END_CLIENT_TICK.register(mc -> TICKS.incrementAndGet());
 		dir = FabricLoader.getInstance().getGameDir().resolve("video_tour");
 		try {
 			if (Files.isDirectory(dir)) {
@@ -67,16 +73,11 @@ public class VideoTour implements FabricClientGameTest {
 		} catch (IOException e) {
 			throw new AssertionError(e);
 		}
-		// 3:4, set into the middle of the 9:16 Short so the clock line sits clear of the Shorts
-		// title along the bottom. GUI scale 4 makes the clock big enough to read on a phone.
-		String[] size = System.getProperty("nightfallclock.videoSize", "1080x1440").split("x");
-		int width = Integer.parseInt(size[0]);
-		int height = Integer.parseInt(size[1]);
-		ctx.getInput().resizeWindow(width, height);
-		ctx.waitTicks(3);
-		guiScale(width / 270);
-		String got = ctx.computeOnClient(mc -> mc.getWindow().getWidth() + "x" + mc.getWindow().getHeight());
-		check(got.equals(width + "x" + height), "the window is " + width + "x" + height + " (it is " + got + ")");
+		// The game keeps the screen at least 320 GUI pixels wide, so a 1080-wide window can't go past
+		// GUI scale 3. The world scenes are filmed in a bigger window at scale 4 and cropped to
+		// 1080x1440 from the bottom middle when assembled, which makes the clock a third bigger on a
+		// phone; the settings scene is filmed at 1080x1440 itself, so the whole screen shows.
+		window(1440, 1920, 4);
 		Config.Position position = Config.position;
 		Config.TimeFormat format = Config.timeFormat;
 		Config.position = Config.Position.ABOVE_HOTBAR;
@@ -93,7 +94,8 @@ public class VideoTour implements FabricClientGameTest {
 			dusk(world, server);
 			morning(server);
 			items();
-			settings(width);
+			settings();
+			server.runCommand("tick rate 20");
 		} finally {
 			Config.position = position;
 			Config.timeFormat = format;
@@ -127,7 +129,8 @@ public class VideoTour implements FabricClientGameTest {
 		cottage = ctx.computeOnClient(mc -> mc.player.blockPosition());
 		// A flat lawn around the cottage, in slices small enough for a single fill.
 		int y = cottage.getY();
-		for (int x = cottage.getX() - 24; x <= cottage.getX() + 24; x += 6) {
+		// Cleared well to the west, so no tree stands in front of the setting sun.
+		for (int x = cottage.getX() - 60; x <= cottage.getX() + 24; x += 6) {
 			String xs = x + " ", xe = (x + 5) + " ";
 			int z0 = cottage.getZ() - 30, z1 = cottage.getZ() + 18;
 			server.runCommand("fill " + xs + (y - 3) + " " + z0 + " " + xe + (y - 2) + " " + z1 + " dirt");
@@ -144,6 +147,10 @@ public class VideoTour implements FabricClientGameTest {
 		ctx.runOnClient(mc -> mc.player.getInventory().setSelectedSlot(0));
 		ctx.waitTicks(60);
 		chunks(world);
+		// On a software renderer the game runs extra ticks to catch up while a frame draws, so frames
+		// come an uneven 2-4 ticks apart. Slowed down, every frame is exactly two ticks: the Short
+		// plays the scenes where timing matters (the clock fading back in) at half speed, which is real time.
+		server.runCommand("tick rate 3");
 	}
 
 	/** Waits for the world to draw; a slow software renderer can take longer than the wait allows. */
@@ -184,9 +191,12 @@ public class VideoTour implements FabricClientGameTest {
 		quiet();
 	}
 
-	/** On the porch, looking west over the lawn towards where the sun sets. */
+	/**
+	 * On the front path by the porch steps, looking west over the lawn to where the sun sets, with
+	 * the cottage's corner at the edge. (The porch itself is too narrow to see the sunset from.)
+	 */
 	private void porch(TestServerContext server) {
-		stand(server, 0, 1, -4.5, -14, 2.4, -2);
+		stand(server, 1.5, 0, 1.5, -14, 4, -2);
 	}
 
 	// ------------------------------------------------------------------ scenes
@@ -205,8 +215,8 @@ public class VideoTour implements FabricClientGameTest {
 		frame = 0;
 		record(6);
 		while (!ctx.computeOnClient(mc -> NightfallClock.duskShowing())) {
-			check(frame < 200, "the dusk warning showed while racing through 6:00 PM");
-			server.runCommand("time add 40");
+			check(frame < 300, "the dusk warning showed while racing through 6:00 PM");
+			server.runCommand("time add 20");
 			record(1);
 		}
 		log("dusk", "the sun's getting real low");
@@ -242,39 +252,105 @@ public class VideoTour implements FabricClientGameTest {
 		record(40);
 	}
 
-	/** The settings screen: a corner and 24-hour time, then back to the world to see it. */
-	private void settings(int width) {
-		// The settings list is 310 wide, so this screen is filmed at a smaller GUI scale.
-		guiScale(width / 360);
-		ctx.setScreen(() -> new SettingsScreen(null));
+	/**
+	 * The settings, opened from Mod Menu's Mods screen when Mod Menu is there (the video run adds
+	 * it): the top-left corner and 24-hour time, then back to the world to see it. (The bottom
+	 * corners would sit under the Shorts title.)
+	 */
+	private void settings() {
+		int width = 1080;
+		int height = 1440;
+		window(width, height, 3);
+		boolean modMenu = FabricLoader.getInstance().isModLoaded("modmenu");
+		if (modMenu) {
+			ctx.setScreen(() -> (Screen) construct("com.terraformersmc.modmenu.gui.ModsScreen"));
+			ctx.getInput().typeChars("nightfall clock");
+			ctx.runOnClient(mc -> selectInModMenu(mc.gui.screen()));
+		} else {
+			ctx.setScreen(() -> new SettingsScreen(null));
+		}
+		ctx.waitTicks(5);
 		scene = "settings";
 		frame = 0;
-		ctx.getInput().setCursorPos(width * 0.55, ctx.computeOnClient(mc -> (double) mc.getWindow().getHeight()) * 0.62);
-		record(6);
-		for (int i = 0; i < 4; i++) {
-			clickOption("nightfallclock.options.position", 6 - i);
+		ctx.getInput().setCursorPos(width * 0.62, height * 0.55);
+		record(4);
+		if (modMenu) {
+			int[] gear = ctx.computeOnClient(mc -> {
+				AbstractWidget button = (AbstractWidget) field(mc.gui.screen(), "configureButton");
+				return new int[] { button.getX() + button.getWidth() / 2, button.getY() + button.getHeight() / 2 };
+			});
+			moveTo(gear[0], gear[1], 5);
+			ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+			log("click", "configure");
+			until(mc -> mc.gui.screen() instanceof SettingsScreen);
+			record(2);
 		}
-		clickOption("nightfallclock.options.timeFormat", 6);
-		check(Config.position == Config.Position.BOTTOM_LEFT, "four clicks move the clock to the bottom left");
+		for (int i = 0; i < 2; i++) {
+			clickOption("nightfallclock.options.position", i == 0 ? 5 : 1);
+		}
+		clickOption("nightfallclock.options.timeFormat", 4);
+		check(Config.position == Config.Position.TOP_LEFT, "two clicks move the clock to the top left");
 		check(!Config.timeFormat.twelveHour(), "one click switches to 24-hour time");
-		record(8);
-		ctx.getInput().pressKey(InputConstants.KEY_ESCAPE);
+		record(6);
+		// Straight back to the world (Escape would step back through Mod Menu first).
+		ctx.setScreen(() -> null);
 		log("key", "close");
-		until(mc -> mc.gui.screen() == null);
 		record(30);
 		Config.position = Config.Position.ABOVE_HOTBAR;
 		Config.timeFormat = Config.TimeFormat.TWELVE_HOUR;
-		guiScale(width / 270);
+	}
+
+	/** Selects Nightfall Clock in Mod Menu's list, as clicking it would, so its settings button shows. */
+	private static void selectInModMenu(Screen screen) {
+		try {
+			Object list = field(screen, "modList");
+			for (Object entry : (List<?>) list.getClass().getMethod("children").invoke(list)) {
+				Object mod = entry.getClass().getMethod("getMod").invoke(entry);
+				if (NightfallClock.MOD_ID.equals(mod.getClass().getMethod("getId").invoke(mod))) {
+					Class<?> type = Class.forName("com.terraformersmc.modmenu.gui.widget.entries.ModListEntry");
+					list.getClass().getMethod("setSelected", type).invoke(list, entry);
+					screen.getClass().getMethod("updateSelectedEntry", type).invoke(screen, entry);
+					return;
+				}
+			}
+		} catch (ReflectiveOperationException e) {
+			throw new AssertionError("couldn't select Nightfall Clock in Mod Menu", e);
+		}
+		throw new AssertionError("Failed: Mod Menu lists Nightfall Clock");
+	}
+
+	private static Object construct(String type) {
+		try {
+			return Class.forName(type).getConstructor(Screen.class).newInstance((Screen) null);
+		} catch (ReflectiveOperationException e) {
+			throw new AssertionError("couldn't make " + type, e);
+		}
+	}
+
+	/** A private field of Mod Menu's (which the game test doesn't compile against). */
+	private static Object field(Object owner, String name) {
+		try {
+			var f = owner.getClass().getDeclaredField(name);
+			f.setAccessible(true);
+			return f.get(owner);
+		} catch (ReflectiveOperationException e) {
+			throw new AssertionError("no field " + name + " on " + owner.getClass().getSimpleName(), e);
+		}
 	}
 
 	// ------------------------------------------------------------------ filming
 
-	private void guiScale(int scale) {
+	/** Sizes the window and the GUI, and checks both took (a screen too small for the window can shrink it). */
+	private void window(int width, int height, int scale) {
+		ctx.getInput().resizeWindow(width, height);
+		ctx.waitTicks(3);
 		ctx.runOnClient(mc -> {
-			mc.options.guiScale().set(Math.max(1, scale));
+			mc.options.guiScale().set(scale);
 			mc.resizeGui();
 		});
 		ctx.waitTicks(2);
+		String got = ctx.computeOnClient(mc -> mc.getWindow().getWidth() + "x" + mc.getWindow().getHeight() + " at " + mc.getWindow().getGuiScale());
+		check(got.equals(width + "x" + height + " at " + scale), "the window is " + width + "x" + height + " at GUI scale " + scale + " (it is " + got + ")");
 	}
 
 	private void record(int count) {
@@ -299,7 +375,7 @@ public class VideoTour implements FabricClientGameTest {
 		ctx.takeScreenshot(TestScreenshotOptions.of(String.format(Locale.ROOT, "%s_%04d", scene, frame)).disableCounterPrefix().withDestinationDir(dir));
 		String cursor = ctx.computeOnClient(mc -> mc.gui.screen() == null ? "-\t-"
 				: (int) mc.mouseHandler.xpos() + "\t" + (int) mc.mouseHandler.ypos());
-		frames.add(scene + "\t" + frame + "\t" + cursor);
+		frames.add(scene + "\t" + frame + "\t" + cursor + "\t" + TICKS.get());
 		frame++;
 	}
 

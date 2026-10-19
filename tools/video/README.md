@@ -5,7 +5,9 @@ and `nightfall-clock-short-thumbnail.png`, a vertical 1080x1920 Short. Needs ffm
 Pillow, and Chrome or Chromium.
 
 1. Film it: `./gradlew :fabric:runClientGameTest -PvideoTour`, with `-Pcottage=<file>` to film on the
-   porch of a house built from a `.mcfunction` file (without it the scenes play on open ground). On
+   porch of a house built from a `.mcfunction` file (without it the scenes play on open ground). The
+   run adds Mod Menu to the game for the settings scene: 21.0.0, for Minecraft 26.3; pick another
+   build with `-PvideoModMenu=<version>` (and `-Pminecraft_version=...`) for another version. On
    Linux without a screen, run it under `xvfb-run -a -s "-screen 0 1920x1920x24"` with
    `SDL_VIDEO_FORCE_EGL=1`. `VideoTour` saves a frame per tick, `actions.tsv` and `frames.tsv` in
    `fabric/build/run/clientGameTest/video_tour`. The next game-test run clears that folder, so copy

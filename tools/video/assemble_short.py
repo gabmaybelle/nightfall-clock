@@ -11,6 +11,7 @@ the right 19% and above the bottom 20%. The Short opens partway into the dusk ta
 before that point, so it loops.
 """
 import csv, html, os, shutil, subprocess, sys
+import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 frames_dir, sounds_dir, out = sys.argv[1:4]
@@ -45,19 +46,21 @@ def count(scene):
 
 
 # The dusk take is cut in two: the Short opens HOLD frames after the warning appears, and ends on
-# the frame before that, after racing up to it.
+# the frame before that, after racing up to it. The warning lasts 80 frames (8 s at two ticks a frame).
 dusk = at('dusk', 'dusk')
-HOLD = 40
-# Each piece of the Short: (name, filmed scene, first frame, frame after the last, caption).
+HOLD = 10
+# Each piece of the Short: (name, filmed scene, first frame, frame after the last, caption, slow).
+# VideoTour's frames are two game ticks apart, so they play at double speed; a slow piece shows each
+# frame twice, which is real time (for the clock fading back in after the item name).
 # Change a caption here if its scene in VideoTour changes.
 PIECES = [
-    ('open', 'dusk', dusk + HOLD, dusk + HOLD + 60, 'Never get caught out by nightfall.'),
-    ('morning', 'morning', 10, 100, 'A clock that’s just… there.'),
-    ('items', 'items', 6, at('items', 'clear') + 24, 'Gets out of the way.'),
-    ('settings', 'settings', 4, at('settings', 'key') + 14, 'Your spot, your format.'),
-    ('end', 'dusk', 0, dusk + HOLD, None),
+    ('open', 'dusk', dusk + HOLD, dusk + 80, 'Never get caught out by nightfall.', False),
+    ('morning', 'morning', 10, 95, 'A clock that’s just… there.', False),
+    ('items', 'items', 4, at('items', 'clear') + 12, 'Gets out of the way.', True),
+    ('settings', 'settings', 4, at('settings', 'key') + 14, 'Your spot, your format.', False),
+    ('end', 'dusk', 0, dusk + HOLD, None, False),
 ]
-for name, scene, first, last, _ in PIECES:
+for name, scene, first, last, *_ in PIECES:
     assert 0 <= first < last <= count(scene), f'{name}: frames {first}-{last} of {count(scene)}'
 
 STYLE = """
@@ -92,8 +95,11 @@ def overlay(name, body):
 
 shutil.copy(os.path.join(repo, 'common/src/main/resources/assets/nightfallclock/icon.png'), os.path.join(work, 'icon.png'))
 CAPTION_TOP = 300
-captions = {name: overlay('cap_' + name, f'<div class="band" style="top:{CAPTION_TOP}px"><div class="cap">{html.escape(c)}</div></div>')
-            for name, _, _, _, c in PIECES if c}
+# The settings piece ends on the clock in the top-left corner, so its caption sits lower.
+CAPTION_TOPS = {'settings': 1020}
+captions = {name: overlay('cap_' + name, f'<div class="band" style="top:{CAPTION_TOPS.get(name, CAPTION_TOP)}px">'
+                          f'<div class="cap">{html.escape(c)}</div></div>')
+            for name, _, _, _, c, _ in PIECES if c}
 tag = overlay('tag', f'<div class="band" style="top:{CAPTION_TOP}px"><div class="tag"><img src="icon.png"><div>'
               '<h1>Nightfall Clock</h1><p>Fabric + NeoForge · 1.20.1 - 26.3<br>client-side</p></div></div></div>')
 
@@ -111,12 +117,13 @@ for y, row in enumerate(ARROW):
 def compose(scene, i):
     """One filmed frame set into the tall frame, over a blurred, darker copy of itself."""
     game = Image.open(os.path.join(frames_dir, '%s_%04d.png' % (scene, i))).convert('RGBA')
-    s = W / game.width
     if game.size != (W, GAME_H):
-        game = game.resize((W, GAME_H), Image.LANCZOS)
+        # The world scenes are filmed bigger at a larger GUI scale: keep the bottom middle, where the HUD is.
+        left = (game.width - W) // 2
+        game = game.crop((left, game.height - GAME_H, left + W, game.height))
     x, y = cursor_at.get((scene, i), ('-', '-'))
     if x != '-':
-        game.alpha_composite(cursor, (int(int(x) * s), int(int(y) * s)))
+        game.alpha_composite(cursor, (int(x), int(y)))
     back = game.resize((W * H // GAME_H, H), Image.BILINEAR).crop(((W * H // GAME_H - W) // 2, 0, (W * H // GAME_H - W) // 2 + W, H))
     back = ImageEnhance.Brightness(back.filter(ImageFilter.GaussianBlur(28))).enhance(0.45)
     back.alpha_composite(game, (0, TOP))
@@ -131,10 +138,11 @@ def fade(layer, a):
 
 CAPTION_FADE = 5  # frames for a caption to fade in; the opening one is up from the first frame
 starts, t = {}, 0.0
-for n, (name, scene, first, last, cap) in enumerate(PIECES):
+for n, (name, scene, first, last, cap, slow) in enumerate(PIECES):
     dest = os.path.join(work, name)
     os.makedirs(dest)
-    for j, i in enumerate(range(first, last)):
+    repeat = 2 if slow else 1
+    for j, i in enumerate(i for i in range(first, last) for _ in range(repeat)):
         img = compose(scene, i)
         if cap:
             img.alpha_composite(captions[name] if n == 0 else fade(captions[name], min(1.0, (j + 1) / CAPTION_FADE)))
@@ -142,8 +150,8 @@ for n, (name, scene, first, last, cap) in enumerate(PIECES):
             # The end tag comes in once the race to dusk is under way, and stays to the last frame.
             img.alpha_composite(fade(tag, max(0.0, min(1.0, (j - 10) / 8))))
         img.convert('RGB').save(os.path.join(dest, '%04d.png' % j))
-    starts[name] = (t, scene, first)
-    t += (last - first) / FPS
+    starts[name] = (t, scene, first, repeat)
+    t += (last - first) * repeat / FPS
 total = t
 
 clips = []
@@ -160,12 +168,12 @@ run('ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', os.path.join(work, 'list
 # The game's own sounds at the logged frames: a click for each settings button, and a soft chime
 # under the dusk warning. Without the sound files only the silent version is made.
 cues = []
-for piece, (start, scene, first) in starts.items():
+for piece, (start, scene, first, repeat) in starts.items():
     last = next(p[3] for p in PIECES if p[0] == piece)
     for s, frame, kind, what in actions:
         if s != scene or not first <= frame < last:
             continue
-        when = start + (frame - first) / FPS
+        when = start + (frame - first) * repeat / FPS
         if kind == 'click':
             cues.append((when, 'click', 1.0, 0.3))
         elif kind == 'dusk':
@@ -188,13 +196,19 @@ else:
 
 # The thumbnail: an opening frame with the dusk warning, the warning's line enlarged in the middle
 # and the mod's name large at the top of the safe area.
-thumb = compose('dusk', dusk + HOLD + 10)
-line_y = TOP + GAME_H - 59 * (W // 270) - 14  # the clock line: 59 GUI pixels above the bottom
-strip = thumb.crop((90, line_y - 10, W - 90, line_y + 50))
-strip = strip.resize((W - 120, int(strip.height * (W - 120) / strip.width)), Image.NEAREST)
-panel = Image.new('RGBA', (strip.width + 24, strip.height + 24), (255, 170, 0, 200))
-panel.alpha_composite(strip, (12, 12))
-thumb.alpha_composite(panel, ((W - panel.width) // 2, 900))
+thumb = compose('dusk', dusk + HOLD + 20)
+line_y = TOP + GAME_H - 59 * 4  # the clock line: 59 GUI pixels above the bottom, at GUI scale 4
+words = thumb.crop((250, line_y - 8, W - 250, line_y + 40))
+# Only the gold letters and their shadow (low blue, more red than green), not the grass behind them.
+r, g, b, _ = words.split()
+letters = (np.asarray(b) < 40) & (np.asarray(r).astype(int) >= np.asarray(g).astype(int))
+words.putalpha(Image.fromarray(letters.astype('uint8') * 255))
+words = words.resize((words.width * 17 // 10, words.height * 17 // 10), Image.NEAREST)
+panel = Image.new('RGBA', (words.width + 48, words.height + 48), (0, 0, 0, 0))
+ImageDraw.Draw(panel).rounded_rectangle((0, 0, panel.width - 1, panel.height - 1), 28, fill=(28, 22, 40, 225),
+                                        outline=(255, 170, 0, 160), width=4)
+panel.alpha_composite(words, (24, 24))
+thumb.alpha_composite(panel, ((SAFE_RIGHT - panel.width) // 2 if panel.width < SAFE_RIGHT else (W - panel.width) // 2, 840))
 thumb.alpha_composite(overlay('thumb', f'<div class="band" style="top:330px"><div class="title">Nightfall<br>Clock</div></div>'))
 thumb.convert('RGB').save(os.path.join(out, 'nightfall-clock-short-thumbnail.png'))
 print('total seconds', round(total, 2))
