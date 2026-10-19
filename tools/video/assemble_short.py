@@ -7,8 +7,8 @@ python3 -I assemble_short.py <video_tour dir> <sounds dir> <out dir>
 The game is filmed 3:4 and set into the 9:16 frame with a blurred copy of itself above and below,
 so the clock line sits in the middle of the screen, clear of the Shorts title along the bottom.
 Captions and the end tag stay in the middle band too: below the top 12%, left of the buttons on
-the right 19% and above the bottom 20%. The Short opens partway into the dusk take and ends just
-before that point, so it loops.
+the right 19% and above the bottom 20%. The Short opens partway into the dusk take (the warning
+up, the sun setting beside the cottage) and ends just before that point, so it loops.
 """
 import csv, html, os, shutil, subprocess, sys
 import numpy as np
@@ -49,16 +49,20 @@ def count(scene):
 # the frame before that, after racing up to it. The warning lasts 80 frames (8 s at two ticks a frame).
 dusk = at('dusk', 'dusk')
 HOLD = 10
+# The race up to the warning carries two captions, then the end tag: one take, cut in three.
+race = dusk + HOLD
+sun1, sun2 = race * 36 // 100, race * 68 // 100
 # Each piece of the Short: (name, filmed scene, first frame, frame after the last, caption, slow).
 # VideoTour's frames are two game ticks apart, so they play at double speed; a slow piece shows each
 # frame twice, which is real time (for the clock fading back in after the item name).
 # Change a caption here if its scene in VideoTour changes.
 PIECES = [
-    ('open', 'dusk', dusk + HOLD, dusk + 80, 'Never get caught out by nightfall.', False),
-    ('morning', 'morning', 10, 95, 'A clock that’s just… there.', False),
-    ('items', 'items', 4, at('items', 'clear') + 12, 'Gets out of the way.', True),
-    ('settings', 'settings', 4, at('settings', 'key') + 14, 'Your spot, your format.', False),
-    ('end', 'dusk', 0, dusk + HOLD, None, False),
+    ('open', 'dusk', dusk + HOLD, dusk + 80, 'Know when night’s coming.', False),
+    ('drop', 'drop', at('drop', 'drop') - 22, at('drop', 'drop') + 20, 'No clock in your inventory.', True),
+    ('items', 'items', 4, at('items', 'clear') + 12, 'Steps aside when you need it to.', True),
+    ('sun', 'dusk', 0, sun1, 'It follows the sun…', False),
+    ('longer', 'dusk', sun1, sun2, '…even on longer days.', False),
+    ('end', 'dusk', sun2, race, None, False),
 ]
 for name, scene, first, last, *_ in PIECES:
     assert 0 <= first < last <= count(scene), f'{name}: frames {first}-{last} of {count(scene)}'
@@ -95,9 +99,7 @@ def overlay(name, body):
 
 shutil.copy(os.path.join(repo, 'common/src/main/resources/assets/nightfallclock/icon.png'), os.path.join(work, 'icon.png'))
 CAPTION_TOP = 300
-# The settings piece ends on the clock in the top-left corner, so its caption sits lower.
-CAPTION_TOPS = {'settings': 1020}
-captions = {name: overlay('cap_' + name, f'<div class="band" style="top:{CAPTION_TOPS.get(name, CAPTION_TOP)}px">'
+captions = {name: overlay('cap_' + name, f'<div class="band" style="top:{CAPTION_TOP}px">'
                           f'<div class="cap">{html.escape(c)}</div></div>')
             for name, _, _, _, c, _ in PIECES if c}
 tag = overlay('tag', f'<div class="band" style="top:{CAPTION_TOP}px"><div class="tag"><img src="icon.png"><div>'
@@ -112,6 +114,21 @@ for y, row in enumerate(ARROW):
     for x, c in enumerate(row):
         if c in '12':
             d.rectangle([x * 3, y * 3, x * 3 + 2, y * 3 + 2], fill=(255, 255, 255, 255) if c == '1' else (0, 0, 0, 255))
+
+
+# The tall window draws the hand off screen, so the drop scene shows the vanilla clock as a badge
+# instead: crossed out the moment it's tossed, then fading while the real one flies past.
+TOSS_AT = ((SAFE_RIGHT - 300) // 2, 620)
+TOSS_FADE = 14
+toss = crossed = None
+if os.path.exists(os.path.join(sounds_dir, 'clock.png')):
+    toss = Image.new('RGBA', (300, 300), (0, 0, 0, 0))
+    ImageDraw.Draw(toss).rounded_rectangle((0, 0, 299, 299), 36, fill=(28, 22, 40, 225), outline=(255, 170, 0, 160), width=4)
+    toss.alpha_composite(Image.open(os.path.join(sounds_dir, 'clock.png')).convert('RGBA').resize((224, 224), Image.NEAREST), (38, 38))
+    crossed = toss.copy()
+    d = ImageDraw.Draw(crossed)
+    d.line((62, 62, 238, 238), fill=(225, 45, 45, 255), width=26)
+    d.line((238, 62, 62, 238), fill=(225, 45, 45, 255), width=26)
 
 
 def compose(scene, i):
@@ -144,11 +161,14 @@ for n, (name, scene, first, last, cap, slow) in enumerate(PIECES):
     repeat = 2 if slow else 1
     for j, i in enumerate(i for i in range(first, last) for _ in range(repeat)):
         img = compose(scene, i)
+        if name == 'drop' and toss:
+            since = i - at('drop', 'drop')
+            img.alpha_composite(toss if since < 0 else fade(crossed, max(0.0, 1 - since / TOSS_FADE)), TOSS_AT)
         if cap:
             img.alpha_composite(captions[name] if n == 0 else fade(captions[name], min(1.0, (j + 1) / CAPTION_FADE)))
         elif name == 'end':
-            # The end tag comes in once the race to dusk is under way, and stays to the last frame.
-            img.alpha_composite(fade(tag, max(0.0, min(1.0, (j - 10) / 8))))
+            # The end tag comes in for the last stretch of the race to dusk, and stays to the last frame.
+            img.alpha_composite(fade(tag, min(1.0, (j + 1) / CAPTION_FADE)))
         img.convert('RGB').save(os.path.join(dest, '%04d.png' % j))
     starts[name] = (t, scene, first, repeat)
     t += (last - first) * repeat / FPS

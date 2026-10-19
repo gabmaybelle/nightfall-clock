@@ -51,12 +51,7 @@ processResources {
 // `./gradlew :fabric:runClientGameTest -PvideoTour` also films the vertical Short (VideoTour), frames in
 // build/run/clientGameTest/video_tour. `-Pcottage=<file>` names a house's .mcfunction build to film at;
 // Without -PvideoTour the game test runs as usual.
-// The video run also adds Mod Menu to the game, for its settings scene; `-PvideoModMenu=<version>`
-// picks the build for the Minecraft version filmed (21.0.0 is for 26.3).
 if (project.hasProperty("videoTour")) {
-	dependencies {
-		localRuntime "com.terraformersmc:modmenu:${project.findProperty('videoModMenu') ?: '21.0.0'}"
-	}
 	tasks.matching { it.name == 'runClientGameTest' }.configureEach {
 		systemProperty 'nightfallclock.videoTour', 'true'
 		for (name in ['cottage']) {

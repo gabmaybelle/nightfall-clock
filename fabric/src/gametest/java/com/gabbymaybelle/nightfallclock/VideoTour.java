@@ -1,7 +1,6 @@
 package com.gabbymaybelle.nightfallclock;
 
 import com.gabbymaybelle.nightfallclock.mixin.HudAccessor;
-import com.mojang.blaze3d.platform.InputConstants;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,26 +17,23 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContex
 import net.fabricmc.fabric.api.client.gametest.v1.screenshot.TestScreenshotOptions;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.events.ContainerEventHandler;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.level.biome.Biomes;
 
 /**
- * Films the vertical YouTube Short: a screenshot every tick (20 a second) in a tall window, on the
- * porch of a cottage when its build file is passed in (`-Pcottage=<.mcfunction>`), or on open
- * ground without it. Frames, `actions.tsv` (what happened at which frame, for the sounds) and
- * `frames.tsv` (where the pointer was) go in the game folder's `video_tour`. Only runs with
- * `./gradlew :fabric:runClientGameTest -PvideoTour`; tools/video turns the frames into the Short.
+ * Films the vertical YouTube Short: a screenshot every tick (20 a second) in a tall window, at a
+ * cottage when its build file is passed in (`-Pcottage=<.mcfunction>`), or on open ground without
+ * it. Frames, `actions.tsv` (what happened at which frame, for the sounds) and `frames.tsv` go in
+ * the game folder's `video_tour`. Only runs with `./gradlew :fabric:runClientGameTest -PvideoTour`;
+ * tools/video turns the frames into the Short.
  */
 public class VideoTour implements FabricClientGameTest {
 	/** Vanilla ticks: 0 is 6:00 AM, 1000 ticks to the hour, so 12000 is 6:00 PM. */
 	private static final int DUSK = 12000;
+	/** Mid-afternoon light for the scenes on the front path. */
+	private static final int AFTERNOON = 9000;
 
 	private ClientGameTestContext ctx;
 	private Path dir;
@@ -74,9 +70,8 @@ public class VideoTour implements FabricClientGameTest {
 			throw new AssertionError(e);
 		}
 		// The game keeps the screen at least 320 GUI pixels wide, so a 1080-wide window can't go past
-		// GUI scale 3. The world scenes are filmed in a bigger window at scale 4 and cropped to
-		// 1080x1440 from the bottom middle when assembled, which makes the clock a third bigger on a
-		// phone; the settings scene is filmed at 1080x1440 itself, so the whole screen shows.
+		// GUI scale 3. The scenes are filmed in a bigger window at scale 4 and cropped to 1080x1440
+		// from the bottom middle when assembled, which makes the clock a third bigger on a phone.
 		window(1440, 1920, 4);
 		Config.Position position = Config.position;
 		Config.TimeFormat format = Config.timeFormat;
@@ -91,10 +86,9 @@ public class VideoTour implements FabricClientGameTest {
 			chunks(world);
 			TestServerContext server = world.getServer();
 			setUp(world, server);
-			dusk(world, server);
-			morning(server);
+			drop(world, server);
 			items();
-			settings();
+			dusk(world, server);
 			server.runCommand("tick rate 20");
 		} finally {
 			Config.position = position;
@@ -127,10 +121,10 @@ public class VideoTour implements FabricClientGameTest {
 		ctx.waitTicks(5);
 		chunks(world);
 		cottage = ctx.computeOnClient(mc -> mc.player.blockPosition());
-		// A flat lawn around the cottage, in slices small enough for a single fill.
+		// A flat lawn around the cottage, in slices small enough for a single fill. It reaches well
+		// east, where the sunset shot stands, and well west, so no tree stands in front of the sun.
 		int y = cottage.getY();
-		// Cleared well to the west, so no tree stands in front of the setting sun.
-		for (int x = cottage.getX() - 60; x <= cottage.getX() + 24; x += 6) {
+		for (int x = cottage.getX() - 60; x <= cottage.getX() + 42; x += 6) {
 			String xs = x + " ", xe = (x + 5) + " ";
 			int z0 = cottage.getZ() - 30, z1 = cottage.getZ() + 18;
 			server.runCommand("fill " + xs + (y - 3) + " " + z0 + " " + xe + (y - 2) + " " + z1 + " dirt");
@@ -140,7 +134,9 @@ public class VideoTour implements FabricClientGameTest {
 		build(server, cottage);
 		ctx.waitTicks(2);
 		server.runCommand("kill @e[type=item]");
-		// Something cozy in the first few slots, for the item names; an empty hand to start.
+		// A vanilla clock in hand to start (the first scene drops it), then something cozy in the
+		// next few slots, for the item names.
+		server.runCommand("item replace entity @a hotbar.0 with clock");
 		server.runCommand("item replace entity @a hotbar.1 with lantern");
 		server.runCommand("item replace entity @a hotbar.2 with bread 6");
 		server.runCommand("item replace entity @a hotbar.3 with poppy 3");
@@ -192,51 +188,47 @@ public class VideoTour implements FabricClientGameTest {
 	}
 
 	/**
-	 * On the front path by the porch steps, looking west over the lawn to where the sun sets, with
-	 * the cottage's corner at the edge. (The porch itself is too narrow to see the sunset from.)
+	 * On the front path, ten blocks out, looking up at the porch, the door and the window boxes.
+	 * (The cottage goes north, negative z, of its spot.)
 	 */
-	private void porch(TestServerContext server) {
-		stand(server, 1.5, 0, 1.5, -14, 4, -2);
+	private void frontPath(TestServerContext server) {
+		stand(server, 1.5, 0, 9, 0, 6, -9);
+	}
+
+	/**
+	 * Out on the lawn east of the cottage, looking a little north of west: the sun sets left of
+	 * middle and the cottage fills the right half, inside the Short's crop.
+	 */
+	private void sunsetLawn(TestServerContext server) {
+		stand(server, 34, 0, 4, -10, 9.5, -5.5);
 	}
 
 	// ------------------------------------------------------------------ scenes
 
 	/**
-	 * Late afternoon racing towards 6:00 PM, the warning arriving as it's played through, then the
-	 * sunset going on slowly behind it. The Short opens partway into this take (the warning already
-	 * up) and ends just before that point, so it loops.
+	 * The vanilla clock in hand, its item name long gone and Nightfall Clock's time showing; then the
+	 * clock is dropped and the time stays.
 	 */
-	private void dusk(TestSingleplayerContext world, TestServerContext server) {
-		server.runCommand("time set " + (DUSK - 1300));
-		porch(server);
+	private void drop(TestSingleplayerContext world, TestServerContext server) {
+		server.runCommand("time set " + AFTERNOON);
+		frontPath(server);
 		chunks(world);
+		until0(mc -> ((HudAccessor) mc.gui.hud).nightfallclock$toolHighlightTimer() == 0);
 		ctx.waitTicks(20);
-		scene = "dusk";
+		scene = "drop";
 		frame = 0;
-		record(6);
-		while (!ctx.computeOnClient(mc -> NightfallClock.duskShowing())) {
-			check(frame < 300, "the dusk warning showed while racing through 6:00 PM");
-			server.runCommand("time add 20");
+		// The minutes tick by the whole time, with or without the clock in hand.
+		for (int i = 0; i < 76; i++) {
+			if (i == 36) {
+				ctx.getInput().pressKey(options -> options.keyDrop);
+				log("drop", "clock");
+			}
+			server.runCommand("time add 4");
 			record(1);
 		}
-		log("dusk", "the sun's getting real low");
-		for (int i = 0; i < 150; i++) {
-			server.runCommand("time add 3");
-			record(1);
-		}
-	}
-
-	/** Morning on the same porch, the clock racing through the hours. */
-	private void morning(TestServerContext server) {
-		server.runCommand("time set 23000");
-		porch(server);
-		ctx.waitTicks(20);
-		scene = "morning";
-		frame = 0;
-		for (int i = 0; i < 110; i++) {
-			server.runCommand("time add 40");
-			record(1);
-		}
+		check(ctx.computeOnClient(mc -> mc.player.getMainHandItem().isEmpty()), "the clock was dropped");
+		// Gone before the next scene, so it isn't picked back up into the hotbar on camera.
+		server.runCommand("kill @e[type=item]");
 	}
 
 	/** Switching hotbar slots: the item's name takes the clock's line, then the clock fades back. */
@@ -253,88 +245,28 @@ public class VideoTour implements FabricClientGameTest {
 	}
 
 	/**
-	 * The settings, opened from Mod Menu's Mods screen when Mod Menu is there (the video run adds
-	 * it): the top-left corner and 24-hour time, then back to the world to see it. (The bottom
-	 * corners would sit under the Shorts title.)
+	 * Early afternoon racing towards 6:00 PM with the sun sinking towards the cottage, the warning
+	 * arriving as it's played through, then the sunset going on slowly behind it. The Short opens
+	 * partway into the warning and ends just before that point, so it loops.
 	 */
-	private void settings() {
-		int width = 1080;
-		int height = 1440;
-		window(width, height, 3);
-		boolean modMenu = FabricLoader.getInstance().isModLoaded("modmenu");
-		if (modMenu) {
-			ctx.setScreen(() -> (Screen) construct("com.terraformersmc.modmenu.gui.ModsScreen"));
-			ctx.getInput().typeChars("nightfall clock");
-			ctx.runOnClient(mc -> selectInModMenu(mc.gui.screen()));
-		} else {
-			ctx.setScreen(() -> new SettingsScreen(null));
-		}
-		ctx.waitTicks(5);
-		scene = "settings";
+	private void dusk(TestSingleplayerContext world, TestServerContext server) {
+		ctx.getInput().pressKey(options -> options.keyHotbarSlots[0]);
+		server.runCommand("time set " + (DUSK - 5000));
+		sunsetLawn(server);
+		chunks(world);
+		ctx.waitTicks(20);
+		scene = "dusk";
 		frame = 0;
-		ctx.getInput().setCursorPos(width * 0.62, height * 0.55);
-		record(4);
-		if (modMenu) {
-			int[] gear = ctx.computeOnClient(mc -> {
-				AbstractWidget button = (AbstractWidget) field(mc.gui.screen(), "configureButton");
-				return new int[] { button.getX() + button.getWidth() / 2, button.getY() + button.getHeight() / 2 };
-			});
-			moveTo(gear[0], gear[1], 5);
-			ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
-			log("click", "configure");
-			until(mc -> mc.gui.screen() instanceof SettingsScreen);
-			record(2);
-		}
-		for (int i = 0; i < 2; i++) {
-			clickOption("nightfallclock.options.position", i == 0 ? 5 : 1);
-		}
-		clickOption("nightfallclock.options.timeFormat", 4);
-		check(Config.position == Config.Position.TOP_LEFT, "two clicks move the clock to the top left");
-		check(!Config.timeFormat.twelveHour(), "one click switches to 24-hour time");
 		record(6);
-		// Straight back to the world (Escape would step back through Mod Menu first).
-		ctx.setScreen(() -> null);
-		log("key", "close");
-		record(30);
-		Config.position = Config.Position.ABOVE_HOTBAR;
-		Config.timeFormat = Config.TimeFormat.TWELVE_HOUR;
-	}
-
-	/** Selects Nightfall Clock in Mod Menu's list, as clicking it would, so its settings button shows. */
-	private static void selectInModMenu(Screen screen) {
-		try {
-			Object list = field(screen, "modList");
-			for (Object entry : (List<?>) list.getClass().getMethod("children").invoke(list)) {
-				Object mod = entry.getClass().getMethod("getMod").invoke(entry);
-				if (NightfallClock.MOD_ID.equals(mod.getClass().getMethod("getId").invoke(mod))) {
-					Class<?> type = Class.forName("com.terraformersmc.modmenu.gui.widget.entries.ModListEntry");
-					list.getClass().getMethod("setSelected", type).invoke(list, entry);
-					screen.getClass().getMethod("updateSelectedEntry", type).invoke(screen, entry);
-					return;
-				}
-			}
-		} catch (ReflectiveOperationException e) {
-			throw new AssertionError("couldn't select Nightfall Clock in Mod Menu", e);
+		while (!ctx.computeOnClient(mc -> NightfallClock.duskShowing())) {
+			check(frame < 300, "the dusk warning showed while racing through 6:00 PM");
+			server.runCommand("time add 40");
+			record(1);
 		}
-		throw new AssertionError("Failed: Mod Menu lists Nightfall Clock");
-	}
-
-	private static Object construct(String type) {
-		try {
-			return Class.forName(type).getConstructor(Screen.class).newInstance((Screen) null);
-		} catch (ReflectiveOperationException e) {
-			throw new AssertionError("couldn't make " + type, e);
-		}
-	}
-
-	/** A private field of Mod Menu's (which the game test doesn't compile against). */
-	private static Object field(Object owner, String name) {
-		try {
-			var f = owner.getClass().getDeclaredField(name);
-			f.setAccessible(true);
-			return f.get(owner);
-		} catch (ReflectiveOperationException e) {
-			throw new AssertionError("no field " + name + " on " + owner.getClass().getSimpleName(), e);
+		log("dusk", "the sun's getting real low");
+		for (int i = 0; i < 150; i++) {
+			server.runCommand("time add 3");
+			record(1);
 		}
 	}
 
@@ -371,6 +303,17 @@ public class VideoTour implements FabricClientGameTest {
 		throw new AssertionError("Failed: " + scene + " waited ten seconds at frame " + frame);
 	}
 
+	/** Waits like `until`, but off camera, before a scene starts. */
+	private void until0(Predicate<Minecraft> done) {
+		for (int i = 0; i < 200; i++) {
+			if (ctx.computeOnClient(done::test)) {
+				return;
+			}
+			ctx.waitTick();
+		}
+		throw new AssertionError("Failed: waited ten seconds before filming");
+	}
+
 	private void shoot() {
 		ctx.takeScreenshot(TestScreenshotOptions.of(String.format(Locale.ROOT, "%s_%04d", scene, frame)).disableCounterPrefix().withDestinationDir(dir));
 		String cursor = ctx.computeOnClient(mc -> mc.gui.screen() == null ? "-\t-"
@@ -394,48 +337,6 @@ public class VideoTour implements FabricClientGameTest {
 	private void press(int slot, String what) {
 		ctx.getInput().pressKey(options -> options.keyHotbarSlots[slot]);
 		log("key", what);
-	}
-
-	/** Moves the pointer to the option button whose caption key is `key` and clicks it. */
-	private void clickOption(String key, int steps) {
-		String label = Component.translatable(key).getString();
-		int[] at = ctx.computeOnClient(mc -> {
-			AbstractWidget button = find(mc.gui.screen(), label);
-			return button == null ? null : new int[] { button.getX() + button.getWidth() / 2, button.getY() + button.getHeight() / 2 };
-		});
-		check(at != null, "the settings screen has " + label);
-		moveTo(at[0], at[1], steps);
-		ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
-		log("click", label);
-		record(2);
-	}
-
-	/** The first widget, at any depth (the options sit inside a list), whose caption starts with `label`. */
-	private static AbstractWidget find(ContainerEventHandler parent, String label) {
-		for (GuiEventListener child : parent.children()) {
-			if (child instanceof AbstractWidget widget && widget.getMessage().getString().startsWith(label)) {
-				return widget;
-			}
-			if (child instanceof ContainerEventHandler inner) {
-				AbstractWidget found = find(inner, label);
-				if (found != null) {
-					return found;
-				}
-			}
-		}
-		return null;
-	}
-
-	private void moveTo(int guiX, int guiY, int steps) {
-		double scale = ctx.computeOnClient(mc -> (double) mc.getWindow().getGuiScale());
-		double fromX = ctx.computeOnClient(mc -> mc.mouseHandler.xpos());
-		double fromY = ctx.computeOnClient(mc -> mc.mouseHandler.ypos());
-		for (int i = 1; i <= steps; i++) {
-			double t = (double) i / steps;
-			t = t * t * (3 - 2 * t);
-			ctx.getInput().setCursorPos(fromX + (guiX * scale - fromX) * t, fromY + (guiY * scale - fromY) * t);
-			record(1);
-		}
 	}
 
 	private static void check(boolean ok, String what) {
