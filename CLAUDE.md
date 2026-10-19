@@ -20,7 +20,7 @@ Three Gradle projects, like Beyond the Dragon: `common` holds everything that do
 - `neoforge/`: `NightfallClockNeoForge` (client-only `@Mod`: NeoForge's GUI layer and tick events, and the config screen on the Mods screen), `META-INF/neoforge.mods.toml`.
 - `tools/generate-icon.js`: draws `icon.png` (`node tools/generate-icon.js`).
 
-There is no in-game test mod on this branch: Fabric's client game test API starts at 1.21.4. (Beyond the Dragon's 1.21.1 branch carries its own small harness, if one is ever wanted here.)
+In-game tests: `fabric/src/gametest` (Fabric has no client game test API for 1.21.1, so `harness/` is a small one of our own, copied from Pocket List) and `neoforge/src/clienttest` (a step-by-step test, part of the mod only in the test run). Both check the clock's time at noon, 6:00 PM and midnight, the dusk warning, and the clock stepping aside for the held item's name and the action bar; the Fabric one also checks the clock text and the Nether. They reach the clock through `NightfallClock.duskShowing()` and `clockHidden()`, package-private hooks for the tests.
 
 ## Build and test
 
@@ -29,14 +29,16 @@ Needs JDK 21 or newer to run Gradle. The code is compiled for Java 21 whichever 
 - `./gradlew build`: `fabric/build/libs/nightfallclock-fabric-<version>.jar` and `neoforge/build/libs/nightfallclock-neoforge-<version>.jar`. The first NeoForge build takes a few minutes (Minecraft is decompiled once).
 - `./gradlew :common:test` and `./gradlew :neoforge:test` run the same unit tests (the dusk rule and reading the time from the sun); `build` runs both. `:neoforge:test` proves them on NeoForge's classes too.
 - `./gradlew :fabric:runClient` and `:neoforge:runClient`: a dev game with the mod.
+- `./gradlew :fabric:runClientGameTest` and `:neoforge:runClientTest`: the in-game tests (each opens a game window, closes it when done, and fails the task on a failed check).
 
-CI (`.github/workflows/build.yml`) builds both jars and runs the tests, with Java 25. A live check in a 1.21.1 game is done by hand before a release.
+CI (`.github/workflows/build.yml`) builds both jars and runs the unit tests and both in-game tests (under `xvfb-run`), with Java 25. A live check of the settings screen in a 1.21.1 game is done by hand before a release.
 
 ## Gotchas
 
 - **The 26.3 game test on a virtual display (the `main` branch).** 26.3's renderer (`com.mojang.renderpearl`, on SDL3) needs an sRGB-capable window. Xvfb's GLX has no sRGB visuals, so the game fails to make a window and then hangs instead of exiting. Fix: set `SDL_VIDEO_FORCE_EGL=1` and install `libegl1 libegl-mesa0`. CI does both, and the test step has a 10-minute timeout. 26.2 opens its window through GLFW and isn't affected.
 - **Fabric API versions are parallel per Minecraft version**; this branch builds against `0.116.17+1.21.1` and `fabric.mod.json` requires `>=0.116.0`.
 - **No refmap on either side.** NeoForge 1.21.1 runs on Mojang's names, so the accessors need none; on Fabric, Loom 1.18 writes the intermediary names (`field_2041` and so on) straight into the accessor classes instead of adding a refmap (check with `javap -v` on the built jar).
+- **Waiting for the time in game tests.** On 1.21.1 and 1.20.1 the server sends the time to the client only once a second, so after `/time set` the tests wait until the client has it, not a fixed few ticks. Commands also post feedback in chat, and the clock steps aside for recent chat: the tests switch `sendCommandFeedback` off and clear chat before the step-aside checks.
 - **Mixin accessors fail hard.** If vanilla renames a field they read, the game crashes on launch. Compiling won't catch it, but the game test will. Before widening the supported versions, run the game test on the new version.
 - **Copied vanilla values.** The sun easing (here `DimensionType.timeOfDay`, the same in 1.21.1 as in 1.20.1: angle 0 at tick 6000, noon; `main` copies the sun_angle timeline instead) and the text positions (item name 59 above the bottom, action bar 72, chat 40) are copied from vanilla. Check them when adding a Minecraft version.
 - **Restricted networks.** Builds need `maven.terraformersmc.com` (Mod Menu), `maven.fabricmc.net`, Maven Central and Mojang's servers. Running the game also needs `resources.download.minecraft.net` for assets. On a network that blocks the Mod Menu server, a local stub of its two API interfaces (`ConfigScreenFactory`, `ModMenuApi`), added through a Gradle init script, is enough to compile. Don't commit it.
