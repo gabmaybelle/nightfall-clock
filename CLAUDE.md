@@ -24,7 +24,7 @@ In-game tests: `fabric/src/gametest` (Fabric has no client game test API for 1.2
 
 ## Build and test
 
-Needs JDK 25 to run Gradle, plus a Java 17 install that Gradle can find (Forge's tools run on it): set `-Dorg.gradle.java.installations.paths=<path to Java 17>` or `-Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64`. The code is compiled for Java 17 whichever JDK compiles it.
+Needs JDK 25 to run Gradle, plus a Java 17 for Forge's tools: Gradle finds an installed one or downloads one itself (the foojay plugin in `settings.gradle`), so no Java path needs passing. CI still points it at the runner's with `-Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64`. The code is compiled for Java 17 whichever JDK compiles it.
 
 - `./gradlew build`: `fabric/build/libs/nightfallclock-fabric-<version>.jar` and `forge/build/libs/nightfallclock-forge-<version>.jar`. The first Forge build takes a few minutes (Minecraft is decompiled once).
 - `./gradlew :common:test` and `./gradlew :forge:test` run the same unit tests (the dusk rule and reading the time from the sun); `build` runs both. `:forge:test` proves them on Forge's classes too.
