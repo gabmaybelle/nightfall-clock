@@ -1,4 +1,19 @@
-# The YouTube Short
+# The YouTube Shorts
+
+## The second Short, "Caught out" (branch `claude/short-2`)
+
+`VideoTour` films it with `Film` (the filming kit's class): out chopping at the woods' edge when the warning comes up at
+6:00 PM, the run home in cuts with the clock showing, the porch, and the door shut on the first zombie at 7:00 PM.
+
+1. Film it: `./gradlew :fabric:runClientGameTest -PvideoTour -PvideoWorld=<saved world zip with the cottage, its spot kept as "cottage">`,
+   or `-PvideoCottage=<the cottage's .mcfunction>` to build it in a new world. `-PvideoScout` takes the first and last
+   frame of each scene, `-PvideoScenes=s_door` films one scene, `-PvideoSkin=<png>` dresses the player. Frames, `actions.tsv`
+   and `frames.tsv` go in `fabric/build/run/clientGameTest/video_tour`; copy them out before the next run.
+2. `python3 -I tools/video/get_sounds.py <sounds dir>`
+3. `python3 tools/video/assemble_short2.py <video_tour folder> <sounds dir> <out dir> [<music file> <start seconds>]...`
+   (absolute paths; needs ffmpeg, Pillow and numpy). A frame a tick at 20 fps; `VideoTour` halves the player's speed to match.
+
+## The first Short (branch `claude/video-tour`)
 
 Makes `nightfall-clock-short.mp4` (with the game's own sounds), `nightfall-clock-short-silent.mp4`
 and `nightfall-clock-short-thumbnail.png`, a vertical 1080x1920 Short. Needs ffmpeg, Python 3 with

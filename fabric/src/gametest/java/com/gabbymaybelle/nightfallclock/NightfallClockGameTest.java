@@ -24,6 +24,10 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		// A filming run (-PvideoTour) films only the video.
+		if (Film.on("nightfallclock")) {
+			return;
+		}
 		settingsFile();
 		try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
 			singleplayer.getConnection().waitForChunksRender();

@@ -48,15 +48,18 @@ processResources {
 	}
 }
 
-// `./gradlew :fabric:runClientGameTest -PvideoTour` also films the vertical Short (VideoTour), frames in
-// build/run/clientGameTest/video_tour. `-Pcottage=<file>` names a house's .mcfunction build to film at;
+// `./gradlew :fabric:runClientGameTest -PvideoTour` also films the Short (VideoTour), frames in
+// build/run/clientGameTest/video_tour. Every other -Pvideo... property is passed on to it:
+// -PvideoScenes=<scene,scene,s_*> films only those scenes, -PvideoScout takes stills per scene,
+// -PvideoWorld=<zip> films in a saved world, -PvideoSkin=<png> dresses the player.
 // Without -PvideoTour the game test runs as usual.
 if (project.hasProperty("videoTour")) {
 	tasks.matching { it.name == 'runClientGameTest' }.configureEach {
 		systemProperty 'nightfallclock.videoTour', 'true'
-		for (name in ['cottage']) {
-			if (project.hasProperty(name)) {
-				systemProperty "nightfallclock.${name}", project.property(name).toString()
+		project.properties.each { name, value ->
+			if (name.startsWith('video') && name != 'videoTour') {
+				// A bare flag (-PvideoScout) arrives empty: pass it on as true.
+				systemProperty "nightfallclock.${name}", value.toString().isEmpty() ? 'true' : value.toString()
 			}
 		}
 	}
