@@ -14,7 +14,8 @@ import net.minecraft.world.level.Level;
 /**
  * Starts the real game, opens a world and checks the parts that only break at runtime: the
  * mixin accessors (a renamed vanilla field crashes the game), reading the time from the sun,
- * the dusk warning, the clock text in both formats, and no clock in the Nether. Run with
+ * the dusk warning, the countdown to dark, the storm warning, the clock text in both formats, and
+ * the Overworld's time in the Nether. Run with
  * ./gradlew runClientGameTest; CI runs it on each supported Minecraft version. Screenshots
  * land in build/run/clientGameTest/screenshots.
  */
@@ -54,7 +55,39 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 			singleplayer.getServer().runCommand("gamerule advance_time true");
 			context.waitFor(mc -> NightfallClock.duskShowing(), 200);
 			context.takeScreenshot("nightfallclock-dusk");
+
+			// After 6:00 PM the clock counts down to dark. From 12500 (about 6:30 PM) vanilla's sky
+			// light reaches 7 at about tick 13178, some 34 s away at 20 ticks a second; a slow test
+			// machine runs the day slower, so the count only has to be sensible. The light's fall is
+			// timed over 2 s, so wait past the /time set jump first.
+			singleplayer.getServer().runCommand("time set 12500");
+			context.waitTicks(60);
+			int seconds = context.computeOnClient(mc -> NightfallClock.darkSeconds());
+			if (seconds < 20 || seconds > 120) {
+				throw new AssertionError("Expected a countdown to dark of about 34 s at 6:30 PM, got " + seconds);
+			}
+			String line = context.computeOnClient(mc -> NightfallClock.describe(NightfallClock.DayTime.of(mc.level), NightfallClock.darkSeconds()).getString());
+			if (!line.contains(" · dark in ")) {
+				throw new AssertionError("The clock isn't counting down to dark: \"" + line + "\"");
+			}
+			context.takeScreenshot("nightfallclock-countdown");
+			singleplayer.getServer().runCommand("time set 13300");
+			context.waitTicks(60);
+			if (context.computeOnClient(mc -> NightfallClock.darkSeconds()) >= 0) {
+				throw new AssertionError("Still counting down after dark (13300)");
+			}
 			singleplayer.getServer().runCommand("gamerule advance_time false");
+
+			// Thunder starting as you play brings "Storm's rolling in".
+			singleplayer.getServer().runCommand("weather clear");
+			context.waitTicks(StormWatch.CLEAR_TICKS + 20);
+			if (context.computeOnClient(mc -> NightfallClock.stormShowing())) {
+				throw new AssertionError("Storm warning showed in clear weather");
+			}
+			singleplayer.getServer().runCommand("weather thunder");
+			context.waitFor(mc -> NightfallClock.stormShowing(), 400);
+			context.takeScreenshot("nightfallclock-storm");
+			singleplayer.getServer().runCommand("weather clear");
 
 			// The words on screen, in both formats: midnight and noon are 12, minutes are padded.
 			expectText(context, Config.TimeFormat.TWELVE_HOUR, 4, 14 * 60 + 35, "Day 4 · 2:35 PM");
@@ -63,13 +96,28 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 			expectText(context, Config.TimeFormat.TWELVE_HOUR, 2, 12 * 60, "Day 2 · 12:00 PM");
 			expectText(context, Config.TimeFormat.TWENTY_FOUR_HOUR, 4, 14 * 60 + 35, "Day 4 · 14:35");
 			expectText(context, Config.TimeFormat.TWENTY_FOUR_HOUR, 1, 7 * 60 + 5, "Day 1 · 07:05");
+			expectLine(context, new NightfallClock.DayTime(1, 18 * 60 + 42), 24, "Day 1 · 6:42 PM · dark in 24s");
+			expectLine(context, new NightfallClock.DayTime(1, 18 * 60 + 5), 75, "Day 1 · 6:05 PM · dark in 1:15");
+			expectLine(context, new NightfallClock.DayTime(4, 21 * 60 + 12, true), -1, "Overworld: Day 4 · 9:12 PM");
 
-			// The Nether has no day, so no clock.
+			// The Nether has no day of its own, so the clock shows the Overworld's: day 4, 9:00 PM.
+			singleplayer.getServer().runCommand("time set " + (3 * 24000 + 15000));
 			singleplayer.getServer().runCommand("execute in minecraft:the_nether run tp @a 0 100 0");
 			context.waitFor(mc -> mc.level != null && mc.level.dimension() == Level.NETHER, 400);
 			context.waitTicks(5);
-			if (context.computeOnClient(mc -> NightfallClock.DayTime.of(mc.level)) != null) {
-				throw new AssertionError("The clock has a time in the Nether, which has no day");
+			NightfallClock.DayTime nether = context.computeOnClient(mc -> NightfallClock.DayTime.of(mc.level));
+			if (nether == null || !nether.elsewhere() || nether.day() != 4 || Math.abs(nether.minute() - 21 * 60) > 1) {
+				throw new AssertionError("Expected the Overworld's day 4, 9:00 PM in the Nether, got " + nether);
+			}
+			context.takeScreenshot("nightfallclock-nether");
+			boolean hidden = context.computeOnClient(mc -> {
+				Config.overworldTime = false;
+				boolean none = NightfallClock.DayTime.of(mc.level) == null;
+				Config.overworldTime = true;
+				return none;
+			});
+			if (!hidden) {
+				throw new AssertionError("With Overworld Time off, the clock still shows in the Nether");
 			}
 		}
 	}
@@ -123,6 +171,20 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 		});
 		if (!shown.equals(expected)) {
 			throw new AssertionError("Expected \"" + expected + "\" (" + format + "), got \"" + shown + "\"");
+		}
+	}
+
+	/** Checks the whole clock line (12-hour), with a countdown or in another world. */
+	private static void expectLine(ClientGameTestContext context, NightfallClock.DayTime time, int seconds, String expected) {
+		String shown = context.computeOnClient(mc -> {
+			Config.TimeFormat before = Config.timeFormat;
+			Config.timeFormat = Config.TimeFormat.TWELVE_HOUR;
+			String text = NightfallClock.describe(time, seconds).getString();
+			Config.timeFormat = before;
+			return text;
+		});
+		if (!shown.equals(expected)) {
+			throw new AssertionError("Expected \"" + expected + "\", got \"" + shown + "\"");
 		}
 	}
 
