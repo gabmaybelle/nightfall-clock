@@ -72,6 +72,8 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 			}
 			// The dusk message has the line for 8 s; the countdown shows on the clock once it's gone.
 			context.waitFor(mc -> !NightfallClock.duskShowing(), 200);
+			// And the clock fades back in over a second.
+			context.waitTicks(25);
 			context.takeScreenshot("nightfallclock-countdown");
 			singleplayer.getServer().runCommand("time set 13300");
 			context.waitTicks(60);

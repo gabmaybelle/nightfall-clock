@@ -83,6 +83,8 @@ final class NightfallClockClientTest {
 		});
 		// The dusk message has the line for 8 s; the countdown shows on the clock once it's gone.
 		waitUntil("the dusk warning to finish", 200, mc -> !NightfallClock.duskShowing());
+		// And the clock fades back in over a second (unless recent chat has the line).
+		waitTicks(25);
 		screenshot();
 		command("time set 13300");
 		waitTicks(60);
