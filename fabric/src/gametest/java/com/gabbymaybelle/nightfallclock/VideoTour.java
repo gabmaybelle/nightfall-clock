@@ -1,5 +1,6 @@
 package com.gabbymaybelle.nightfallclock;
 
+import com.gabbymaybelle.nightfallclock.mixin.HudAccessor;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -236,6 +237,12 @@ public class VideoTour implements FabricClientGameTest {
 		film.scene("s_run2", () -> runCut(0.52, DUSK + 667, 16));
 		film.scene("s_porch", this::porch);
 		film.scene("s_door", this::door);
+
+		// The first Short again, filmed for Gabby's voice-over: a shot about as long as each line.
+		film.scene("v_walk", this::walk);
+		film.scene("v_toss", this::toss);
+		film.scene("v_items", this::items);
+		film.scene("v_sun", this::sunRace);
 	}
 
 	/** Scout only: the edge of the woods from above the lawn, the tree in the middle, in late gold light. */
@@ -395,6 +402,107 @@ public class VideoTour implements FabricClientGameTest {
 		Film.check(!ctx(mc -> mc.level.getBlockState(lower).getValue(DoorBlock.OPEN)), "the door is shut");
 	}
 
+	// ------------------------------------------------------------------ the voice Short
+
+	/**
+	 * "The sun's getting real low." A walk west across the lawn in front of the cottage at sunset,
+	 * seen from behind, the sun low ahead, when at 6:00 PM the warning takes the clock's line. The
+	 * Short opens on the warning and ends on the steps before it ("Nightfall Clock. Know before dark."),
+	 * so it loops.
+	 */
+	private void walk() {
+		Vec3 from = new Vec3(sx + 20.5, film.ground(sx + 20, sz + 6), sz + 6.5);
+		Vec3 to = new Vec3(sx - 6.5, from.y + 1.5, sz + 6.5);
+		ready(from, to, true, DUSK - 55, "air");
+		film.rolling();
+		film.ctx.getInput().holdKey(o -> o.keyUp);
+		film.log("walk", "");
+		int warned = -1;
+		try {
+			for (int i = 0; i < 200 && (warned < 0 || i < warned + 64); i++) {
+				Vec3 at = ctx(mc -> mc.player.position());
+				yawTo((float) Math.toDegrees(Math.atan2(-(to.x - at.x), to.z - at.z)), 4);
+				tick();
+				if (warned < 0 && ctx(mc -> NightfallClock.duskShowing())) {
+					warned = i;
+					int minute = ctx(mc -> NightfallClock.DayTime.of(mc.level).minute());
+					// By the mod's own rule: the warning comes as the clock reaches 6:00 PM.
+					Film.check(minute == SIX_PM || minute == SIX_PM + 1, "the dusk warning showed at 6:00 PM (the clock read minute " + minute + ")");
+					film.log("dusk", "the sun's getting real low");
+				}
+			}
+		} finally {
+			film.ctx.getInput().releaseKey(o -> o.keyUp);
+		}
+		Film.check(warned >= 0, "the dusk warning showed on the walk through 6:00 PM");
+	}
+
+	/** Where the hotbar scenes stand: on the lawn by the front path, the cottage ahead. */
+	private Vec3 lawn() {
+		return new Vec3(sx + 3.5, film.ground(sx + 3, sz + 6), sz + 6.5);
+	}
+
+	/** "No clock to craft. No gold to spend." A vanilla clock in hand is tossed away; the time stays. */
+	private void toss() {
+		ready(lawn(), spot(-1, 3, -6), true, 10000, "clock");
+		clockBack();
+		film.rolling();
+		for (int i = 0; i < 22; i++) {
+			tick();
+		}
+		film.ctx.getInput().pressKey(o -> o.keyDrop);
+		film.log("toss", "clock");
+		for (int i = 0; i < 48; i++) {
+			tick();
+		}
+		Film.check(ctx(mc -> mc.player.getMainHandItem().isEmpty()), "the clock was tossed");
+	}
+
+	/**
+	 * "It moves aside when you're holding something." Switching to a lantern and then bread: each
+	 * item's name takes the clock's line for a moment, then the clock fades back in.
+	 */
+	private void items() {
+		ready(lawn(), spot(-1, 3, -6), true, 10300, "air");
+		clockBack();
+		film.rolling();
+		for (int i = 0; i < 12; i++) {
+			tick();
+		}
+		film.ctx.getInput().pressKey(o -> o.keyHotbarSlots[1]);
+		film.log("key", "lantern");
+		for (int i = 0; i < 16; i++) {
+			tick();
+		}
+		film.ctx.getInput().pressKey(o -> o.keyHotbarSlots[2]);
+		film.log("key", "bread");
+		for (int i = 0; i < 200 && ctx(mc -> ((HudAccessor) mc.gui.hud).nightfallclock$toolHighlightTimer() > 0); i++) {
+			tick();
+		}
+		film.log("clear", "item name gone");
+		// The clock fades back in over 20 of the player's ticks, 10 frames; then a beat on it.
+		for (int i = 0; i < 24; i++) {
+			tick();
+		}
+	}
+
+	/**
+	 * "Longer days in your modpack? It still knows." The afternoon racing towards evening (40 ticks a
+	 * frame) beside the cottage, the sun sinking and the clock following it. It stops short of 6:00 PM.
+	 */
+	private void sunRace() {
+		Vec3 feet = new Vec3(sx + 14.5, film.ground(sx + 14, sz + 4), sz + 4.5);
+		ready(feet, spot(-10, 8, -4), true, 9000, "air");
+		clockBack();
+		film.rolling();
+		film.log("race", "");
+		for (int i = 0; i < 72; i++) {
+			film.server.runCommand("time add 40");
+			film.record(1);
+		}
+		Film.check(!ctx(mc -> NightfallClock.duskShowing()), "the race stopped short of the warning");
+	}
+
 	// ------------------------------------------------------------------ moves
 
 	/**
@@ -402,6 +510,11 @@ public class VideoTour implements FabricClientGameTest {
 	 * hand (day one), seen from behind ({@code third}) or through the player's eyes.
 	 */
 	private void ready(Vec3 feet, Vec3 look, boolean third, int time) {
+		ready(feet, look, third, time, "wooden_axe");
+	}
+
+	/** As above, with {@code hand} (an item id, or "air") in the first hotbar slot. */
+	private void ready(Vec3 feet, Vec3 look, boolean third, int time, String hand) {
 		film.calm();
 		film.server.runCommand("difficulty peaceful");
 		film.server.runCommand("kill @e[type=zombie]");
@@ -422,13 +535,13 @@ public class VideoTour implements FabricClientGameTest {
 		film.server.runCommand("time set " + time);
 		film.server.runCommand("effect give @a saturation 1 10 true");
 		film.server.runCommand("clear @a");
-		film.server.runCommand("item replace entity @a hotbar.1 with oak_log 9");
+		film.server.runCommand("item replace entity @a hotbar.1 with lantern");
 		film.server.runCommand("item replace entity @a hotbar.2 with bread 5");
 		film.server.runCommand("item replace entity @a hotbar.3 with torch 12");
 		film.camera(feet, look);
 		film.ctx.getInput().pressKey(o -> o.keyHotbarSlots[0]);
 		// The new item's name over the hotbar fades before filming starts.
-		film.give("item replace entity @a hotbar.0 with wooden_axe");
+		film.give("item replace entity @a hotbar.0 with " + hand);
 		film.turnHead(look);
 		film.ctx.runOnClient(mc -> {
 			mc.player.setYBodyRot(mc.player.getYRot());
