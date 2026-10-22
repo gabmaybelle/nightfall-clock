@@ -267,7 +267,8 @@ public class VideoTour implements FabricClientGameTest {
 	 * Frame 1 of the Short comes from here: chopping the tree at eye height in late light, seen from
 	 * behind, when at 6:00 PM (the clock ticking a game minute about every 17 frames) the mod's own
 	 * warning takes the clock's line. The chopping comes in bursts, as a player's does (letting go
-	 * starts the log's cracks again), so the log only comes down just after the warning; then a quick
+	 * starts the log's cracks again), so the log only comes down a second or two after the warning,
+	 * which gets the screen to itself for a moment (a voice-over line fits there); then a quick
 	 * turn for home, and off at a sprint. The Short opens on the warning and ends on the swings before
 	 * it, so it loops.
 	 */
@@ -282,8 +283,9 @@ public class VideoTour implements FabricClientGameTest {
 		int warned = -1, felled = -1;
 		for (int i = 0; i < 160 && (felled < 0 || i < felled + 6); i++) {
 			// Bursts of 26 frames (52 of the player's ticks: at half breaking speed a wooden axe needs 60
-			// to fell an oak or birch log) until the warning, then held until the log comes down.
-			boolean hold = warned >= 0 || i % 28 < 26;
+			// to fell an oak or birch log) until 24 frames after the warning, then held until the log
+			// comes down.
+			boolean hold = (warned >= 0 && i >= warned + 24) || i % 28 < 26;
 			if (hold) {
 				film.ctx.getInput().holdKey(o -> o.keyAttack);
 			} else {
@@ -314,8 +316,10 @@ public class VideoTour implements FabricClientGameTest {
 			tick();
 		}
 		film.log("turn", "");
+		// The warning lasts 8 seconds of the player's time (4 of filming), so it may fade back into the
+		// clock during the sprint, as it would in play.
+		Film.check(ctx(mc -> NightfallClock.duskShowing()), "the warning is still up as the player turns for home");
 		run(1, 26);
-		Film.check(ctx(mc -> NightfallClock.duskShowing()), "the warning is still up as the run starts");
 	}
 
 	/** One cut of the run home, starting {@code along} the way, at {@code time}. */
@@ -367,7 +371,8 @@ public class VideoTour implements FabricClientGameTest {
 		film.server.runCommand("effect give @e[type=zombie] fire_resistance 120 0 true");
 		film.rolling();
 		film.log("zombie", "");
-		for (int i = 0; i < 30; i++) {
+		// Long enough for it to come up into the porch light (and for a voice-over line).
+		for (int i = 0; i < 46; i++) {
 			tick();
 		}
 		double near = film.server.computeOnServer(s -> StreamSupport.stream(s.overworld().getAllEntities().spliterator(), false)

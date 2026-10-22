@@ -56,7 +56,7 @@ PIECES = [
     ('s_run1', 0, count('s_run1'), HOUR, 400),
     ('s_run2', 0, count('s_run2'), HOUR, 400),
     ('s_porch', 0, count('s_porch'), ['HOME IN *TIME*'], 400),
-    ('s_door', 0, min(count('s_door'), at('s_door', 'door_close') + 16), None, 0),
+    ('s_door', 0, min(count('s_door'), at('s_door', 'door_close') + 28), None, 0),
     # Back to the swings before the warning, at the first shot's angle: it runs into the first frame.
     ('s_chop', 0, dusk, ['FOLLOW FOR MORE', '*COZY* MODS'], 1250),
 ]
