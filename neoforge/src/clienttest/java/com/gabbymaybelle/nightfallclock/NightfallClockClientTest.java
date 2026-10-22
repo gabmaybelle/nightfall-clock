@@ -81,6 +81,8 @@ final class NightfallClockClientTest {
 			String line = NightfallClock.describe(NightfallClock.DayTime.of(mc.level), seconds).getString();
 			check(line.contains(" · dark in "), "The clock isn't counting down to dark: \"" + line + "\"");
 		});
+		// The dusk message has the line for 8 s; the countdown shows on the clock once it's gone.
+		waitUntil("the dusk warning to finish", 200, mc -> !NightfallClock.duskShowing());
 		screenshot();
 		command("time set 13300");
 		waitTicks(60);
@@ -120,7 +122,11 @@ final class NightfallClockClientTest {
 			boolean hidden = NightfallClock.DayTime.of(mc.level) == null;
 			Config.overworldTime = true;
 			check(hidden, "With Overworld Time off, the clock still shows in the Nether");
+			// The storm warning was still up when the player left; it ends with the Overworld.
+			check(!NightfallClock.stormShowing(), "The Overworld's storm warning followed the player into the Nether");
 		});
+		// The clock fades back in over a second once the line is free.
+		waitTicks(25);
 		screenshot();
 	}
 

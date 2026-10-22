@@ -98,6 +98,8 @@ public class NightfallClock {
 	private static Component shownText;
 	private static int duskTicksLeft = 0;
 	private static int stormTicksLeft = 0;
+	/** The world the messages above were for: a message ends when you change worlds (a portal mid-storm). */
+	private static ClientLevel messageLevel;
 	/** Seconds until monsters can spawn outside, while the clock counts down to dark; -1 otherwise. */
 	private static int darkSeconds = -1;
 	/** Fades the clock back in (0 to FADE_TICKS) after something else had its line. */
@@ -317,6 +319,11 @@ public class NightfallClock {
 			stormTicksLeft = 0;
 			darkSeconds = -1;
 			return;
+		}
+		if (mc.level != messageLevel) {
+			messageLevel = mc.level;
+			duskTicksLeft = 0;
+			stormTicksLeft = 0;
 		}
 		if (STORM.update(mc.level, mc.level.isThundering()) && Config.stormWarning) {
 			stormTicksLeft = DUSK_TICKS;

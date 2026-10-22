@@ -70,6 +70,8 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 			if (!line.contains(" · dark in ")) {
 				throw new AssertionError("The clock isn't counting down to dark: \"" + line + "\"");
 			}
+			// The dusk message has the line for 8 s; the countdown shows on the clock once it's gone.
+			context.waitFor(mc -> !NightfallClock.duskShowing(), 200);
 			context.takeScreenshot("nightfallclock-countdown");
 			singleplayer.getServer().runCommand("time set 13300");
 			context.waitTicks(60);
@@ -88,6 +90,7 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 			context.waitFor(mc -> NightfallClock.stormShowing(), 400);
 			context.takeScreenshot("nightfallclock-storm");
 			singleplayer.getServer().runCommand("weather clear");
+			// Still up as the player leaves for the Nether, below, so that check proves it ends there.
 
 			// The words on screen, in both formats: midnight and noon are 12, minutes are padded.
 			expectText(context, Config.TimeFormat.TWELVE_HOUR, 4, 14 * 60 + 35, "Day 4 · 2:35 PM");
@@ -109,6 +112,11 @@ public class NightfallClockGameTest implements FabricClientGameTest {
 			if (nether == null || !nether.elsewhere() || nether.day() != 4 || Math.abs(nether.minute() - 21 * 60) > 1) {
 				throw new AssertionError("Expected the Overworld's day 4, 9:00 PM in the Nether, got " + nether);
 			}
+			if (context.computeOnClient(mc -> NightfallClock.stormShowing())) {
+				throw new AssertionError("The Overworld's storm warning followed the player into the Nether");
+			}
+			// The clock fades back in over a second once the line is free.
+			context.waitTicks(25);
 			context.takeScreenshot("nightfallclock-nether");
 			boolean hidden = context.computeOnClient(mc -> {
 				Config.overworldTime = false;
