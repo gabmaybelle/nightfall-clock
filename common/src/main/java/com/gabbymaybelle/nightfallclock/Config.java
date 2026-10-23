@@ -29,6 +29,12 @@ public final class Config {
 	public static boolean clock = true;
 	/** "The sun's getting real low" above the hotbar at 6:00 PM. */
 	public static boolean duskWarning = true;
+	/** After 6:00 PM, the seconds until monsters can spawn outside, on the clock's line. */
+	public static boolean countdown = true;
+	/** "Storm's rolling in" above the hotbar when thunder starts. */
+	public static boolean stormWarning = true;
+	/** In the Nether and the End, the Overworld's day and time. */
+	public static boolean overworldTime = true;
 	public static Position position = Position.ABOVE_HOTBAR;
 	public static TimeFormat timeFormat = TimeFormat.AUTO;
 
@@ -90,6 +96,9 @@ public final class Config {
 		}
 		clock = bool(props, "clock", clock);
 		duskWarning = bool(props, "duskWarning", duskWarning);
+		countdown = bool(props, "countdown", countdown);
+		stormWarning = bool(props, "stormWarning", stormWarning);
+		overworldTime = bool(props, "overworldTime", overworldTime);
 		position = choice(props, "position", position);
 		timeFormat = choice(props, "timeFormat", timeFormat);
 		loaded = props;
@@ -100,7 +109,7 @@ public final class Config {
 	}
 
 	/** Every setting the file should have; the file is written when one is missing. */
-	private static final List<String> KEYS = List.of("clock", "duskWarning", "position", "timeFormat");
+	private static final List<String> KEYS = List.of("clock", "duskWarning", "countdown", "stormWarning", "overworldTime", "position", "timeFormat");
 	/** The file as it was read, so settings from a newer version (or added by hand) survive a save. */
 	private static Properties loaded = new Properties();
 
@@ -109,6 +118,9 @@ public final class Config {
 		props.putAll(loaded);
 		props.setProperty("clock", Boolean.toString(clock));
 		props.setProperty("duskWarning", Boolean.toString(duskWarning));
+		props.setProperty("countdown", Boolean.toString(countdown));
+		props.setProperty("stormWarning", Boolean.toString(stormWarning));
+		props.setProperty("overworldTime", Boolean.toString(overworldTime));
 		props.setProperty("position", position.name().toLowerCase(Locale.ROOT));
 		props.setProperty("timeFormat", timeFormat.name().toLowerCase(Locale.ROOT));
 		// Written to a temporary file first and then swapped in, so a crash part-way through never
@@ -118,6 +130,9 @@ public final class Config {
 			props.store(writer, "Nightfall Clock (also in game: Mods > Nightfall Clock > settings, with Mod Menu)\n"
 					+ "clock: day and time above the hotbar (or in a corner)\n"
 					+ "duskWarning: message above the hotbar at sunset (6:00 PM)\n"
+						+ "countdown: after 6:00 PM, the seconds until it's dark enough for monsters\n"
+						+ "stormWarning: message above the hotbar when thunder starts\n"
+						+ "overworldTime: in the Nether and the End, the Overworld's day and time\n"
 					+ "position: above_hotbar, top_right, top_left, bottom_right or bottom_left\n"
 					+ "timeFormat: auto, twelve_hour or twenty_four_hour (auto = your computer's region)");
 		} catch (IOException e) {

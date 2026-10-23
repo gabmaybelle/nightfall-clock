@@ -10,6 +10,8 @@ displayName = "Nightfall Clock"
 authors = "Gabby"
 displayURL = "https://github.com/gabmaybelle/nightfall-clock"
 logoFile = "assets/nightfallclock/icon.png"
+# NeoForge 26.x's Mods list takes its small icon from iconFile; logoFile only fills the banner above the details.
+iconFile = "assets/nightfallclock/icon.png"
 description = '''A day counter and clock that follows where the sun really is, so it stays right on longer days, plus a heads-up above the hotbar when the sun starts to set.'''
 
 [[mixins]]

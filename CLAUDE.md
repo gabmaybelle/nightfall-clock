@@ -9,6 +9,7 @@ it first, and add this session's row before ending.
 
 - `common/src/main/java/com/gabbymaybelle/nightfallclock/`: the shared code, compiled into both jars.
   - `NightfallClock.java`: HUD drawing, the tick handler (dusk detection, fades), and the `DayTime` record (sun angle to clock time). No loader code.
+  - `DuskWatch.java`, `StormWatch.java` and `DarkCountdown.java`: the rules for when dusk and a storm arrive, and the seconds until monsters can spawn outside (timed from how fast the sky light falls). No Minecraft classes, so they're unit-tested.
   - `Config.java`: `config/nightfallclock.properties` (each loader passes in its config folder), the `Position` and `TimeFormat` enums.
   - `SettingsScreen.java`: the settings screen.
   - `mixin/HudAccessor.java` and `mixin/ChatComponentAccessor.java`: read-only accessors for vanilla fields.
@@ -22,11 +23,11 @@ Needs JDK 25.
 
 - `./gradlew build`: `fabric/build/libs/nightfallclock-fabric-<version>.jar` and `neoforge/build/libs/nightfallclock-neoforge-<version>.jar`.
 - `./gradlew :fabric:runClient` / `:neoforge:runClient`: a dev game with the mod.
-- `./gradlew :fabric:runClientGameTest` (Fabric only): launches the game, checks the settings file (typos, unknown settings, safe saving), opens a world and checks the accessors, the clock time at several `/time set` points, the dusk warning, the clock text in both formats and that there is no clock in the Nether. It needs a display. Screenshots go to `fabric/build/run/clientGameTest/screenshots/`.
+- `./gradlew :fabric:runClientGameTest` (Fabric only): launches the game, checks the settings file (typos, unknown settings, safe saving), opens a world and checks the accessors, the clock time at several `/time set` points, the dusk warning, the countdown to dark, the storm warning, the clock text in both formats and the Overworld's time in the Nether. It needs a display. Screenshots go to `fabric/build/run/clientGameTest/screenshots/`.
 - `./gradlew :neoforge:runClientTest` (NeoForge): the same checks as the Fabric game test, in a fresh flat creative world. A failed check crashes the game with a report in `neoforge/build/run/clientTest/crash-reports/`, so the task fails; a watchdog stops a run that hangs for 10 minutes. Screenshots go to `neoforge/build/run/clientTest/screenshots/`.
 - For 26.3, add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3 -Pneoforge_version=26.3.0.77` to any of these.
 
-`./gradlew test` runs the unit tests (the dusk rule and reading the time from the sun) in `common` and again on NeoForge's classes; `build` runs them too.
+`./gradlew test` runs the unit tests (the dusk and storm rules, the countdown to dark and reading the time from the sun) in `common` and again on NeoForge's classes; `build` runs them too.
 
 CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs both loaders' game tests on each. Only the 26.2 jars are uploaded as release artifacts. Each loader's jar is what players get for both versions.
 
@@ -35,6 +36,9 @@ CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs both lo
 - **The 26.3 game test on a virtual display.** 26.3's renderer (`com.mojang.renderpearl`, on SDL3) needs an sRGB-capable window. Xvfb's GLX has no sRGB visuals, so the game fails to make a window and then hangs instead of exiting. Fix: set `SDL_VIDEO_FORCE_EGL=1` and install `libegl1 libegl-mesa0`. CI does both, and the test step has a 10-minute timeout. 26.2 opens its window through GLFW and isn't affected.
 - **Fabric API versions are parallel per Minecraft version**, for example `0.161.0+26.2` and `0.161.0+26.3`. `fabric.mod.json` requires `>=0.161.0`, the version the mod is built against.
 - **NeoForge dev runs check more than players' games.** They run with vanilla's development checks on (`SharedConstants.IS_RUNNING_IN_IDE`); Fabric's don't. One caught reading the sun angle for the whole dimension, which the game says needs a position, so the clock reads it through the camera, as the sky does.
+- **"Dark" means monsters can spawn outside.** Monster.isDarkEnoughToSpawn: under open sky, once the sky light level (`SKY_LIGHT_LEVEL`, which Level.updateSkyBrightness turns into sky darkening) is at or below the dimension's `monsterSpawnLightTest` maximum (7 in the overworld). In vanilla that's about tick 13178 in clear weather. In a thunderstorm they can spawn at any hour, so there's no countdown then.
+- **NeoForge's Mods screen** takes its list icon from `iconFile`; `logoFile` only fills the banner above the details.
+- **The Overworld's time elsewhere.** The server sends every world's clock to every player, so the Nether and the End can show the Overworld's day by sampling the day timeline's sun-angle track directly (there's no sun to read through the camera there).
 - **Mixin accessors fail hard.** If vanilla renames a field they read, the game crashes on launch. Compiling won't catch it, but the game test will. Before widening the supported versions, run the game test on the new version.
 - **Copied vanilla values.** The sun easing (`timeline/day.json`, `minecraft:visual/sun_angle`, angle 0 at tick 6000, noon) and the text positions (item name 59 above the bottom, action bar 72, chat 40) are copied from vanilla. Check them when adding a Minecraft version. All of them were the same in 26.2 and 26.3.
 - **Restricted networks.** Builds need `maven.terraformersmc.com` (Mod Menu), `maven.fabricmc.net`, Maven Central and Mojang's servers. Running the game also needs `resources.download.minecraft.net` for assets. On a network that blocks the Mod Menu server, a local stub of its two API interfaces (`ConfigScreenFactory`, `ModMenuApi`), added through a Gradle init script, is enough to compile. Don't commit it.

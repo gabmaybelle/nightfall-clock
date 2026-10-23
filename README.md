@@ -8,13 +8,19 @@ I kept getting caught out by the dark, halfway through a build or a long way fro
 
 ## What you see
 
-A line of text just above your hearts and hunger: "Day 4 · 2:35 PM". It turns gold at 6:00 PM and stays gold until 7:00 PM, when night falls.
+A line of text just above your hearts and hunger: "Day 4 · 2:35 PM". It turns gold at 6:00 PM and stays gold until night falls.
 
 At 6:00 PM that line reads "The sun's getting real low" for a few seconds, then goes back to the time. It only happens when dusk arrives as you play, not when you sleep or jump ahead with `/time set` (a jump of just a few minutes still counts as playing through it).
 
+Then the clock counts down to dark: "Day 4 · 6:42 PM · dark in 24s". It's counting to the moment it's dark enough for monsters to spawn outside, in real seconds, so you know whether there's time to make it home. It's timed from how fast the sky is really getting darker, so it stays right on longer days and in rain.
+
+When thunder starts, the line reads "Storm's rolling in" for a few seconds. Monsters can spawn in daylight during a thunderstorm, so it's a second kind of nightfall.
+
 The clock shares its spot politely. When something else needs that space (the name of the item you just switched to, a message in the action bar, or recent chat), the clock steps aside and fades back in once it's gone. If a server keeps its own text in the action bar all the time, the clock shows alongside it instead of staying hidden.
 
-It hides with the rest of the HUD when you press F1, and in the Nether and the End, which have no day.
+It hides with the rest of the HUD when you press F1.
+
+In the Nether and the End, which have no day of their own, the clock shows the Overworld's: "Overworld: Day 4 · 9:12 PM". So you know whether it's night before you step back through the portal.
 
 ## Right on longer days
 
@@ -28,6 +34,9 @@ On Fabric, with [Mod Menu](https://modrinth.com/mod/modmenu) installed, open Mod
 
 - **Clock:** on or off.
 - **Dusk Warning:** on or off.
+- **Countdown to Dark:** on or off.
+- **Storm Warning:** on or off.
+- **Overworld Time:** the Overworld's time in the Nether and the End, on or off.
 - **Position:** above the hotbar, or in any corner of the screen. (Minimaps and some HUD mods use the top corners; pick one they don't.)
 - **Time Format:** 12-hour (6:00 PM), 24-hour (18:00), or Auto, which follows your computer's region settings.
 
@@ -60,7 +69,7 @@ Requires JDK 25.
 
 The jars are written to `fabric/build/libs/nightfallclock-fabric-<version>.jar` and `neoforge/build/libs/nightfallclock-neoforge-<version>.jar`. The icon is drawn by `node tools/generate-icon.js`.
 
-`./gradlew :fabric:runClientGameTest` starts the game, checks the settings file (typos, unknown settings, safe saving), then opens a test world and checks the clock and dusk warning (it needs a display; on a Linux virtual display such as Xvfb, set `SDL_VIDEO_FORCE_EGL=1` for 26.3). Add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3 -Pneoforge_version=26.3.0.77` to build or test against 26.3. There is no automated game test for the NeoForge jar yet.
+`./gradlew :fabric:runClientGameTest` starts the game, checks the settings file (typos, unknown settings, safe saving), then opens a test world and checks the clock, the dusk and storm warnings, the countdown to dark and the Overworld's time in the Nether (it needs a display; on a Linux virtual display such as Xvfb, set `SDL_VIDEO_FORCE_EGL=1` for 26.3). `./gradlew :neoforge:runClientTest` does the same for the NeoForge jar. Add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3 -Pneoforge_version=26.3.0.77` to build or test against 26.3.
 
 ## Licence
 
