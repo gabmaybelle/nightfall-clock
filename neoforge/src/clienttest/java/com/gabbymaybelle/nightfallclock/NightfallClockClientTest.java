@@ -107,6 +107,8 @@ final class NightfallClockClientTest {
 		command("execute in minecraft:the_nether run tp @a 0 128 0");
 		waitUntil("the player in the Nether", 400, mc -> mc.level != null && mc.level.dimension() == Level.NETHER);
 		waitUntil("the Overworld's time in the Nether", 100, mc -> Math.abs(mc.level.getDayTime() - (3 * 24000 + 15000)) < 20);
+		// And the clock's own tick has seen the new world (it ends the Overworld's messages there).
+		waitTicks(5);
 		run(mc -> {
 			NightfallClock.DayTime nether = NightfallClock.DayTime.of(mc.level);
 			check(nether != null && nether.elsewhere() && nether.day() == 4 && Math.abs(nether.minute() - 21 * 60) <= 1,

@@ -123,6 +123,8 @@ public class NightfallClockGameTest implements ClientGameTest {
 			context.waitFor(mc -> mc.level != null && mc.level.dimension() == Level.NETHER, 400);
 			// The time reaches the client within a second.
 			context.waitFor(mc -> Math.abs(mc.level.getDayTime() - (3 * 24000 + 15000)) < 20, 100);
+			// And the clock's own tick has seen the new world (it ends the Overworld's messages there).
+			context.waitTicks(5);
 			NightfallClock.DayTime nether = context.computeOnClient(mc -> NightfallClock.DayTime.of(mc.level));
 			if (nether == null || !nether.elsewhere() || nether.day() != 4 || Math.abs(nether.minute() - 21 * 60) > 1) {
 				throw new AssertionError("Expected the Overworld's day 4, 9:00 PM in the Nether, got " + nether);
