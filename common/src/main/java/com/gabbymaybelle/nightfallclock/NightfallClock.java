@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screens.inventory.EffectRenderingInventoryScreen
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FastColor;
+import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.ChatVisiblity;
 import org.slf4j.Logger;
@@ -21,7 +22,9 @@ import org.slf4j.LoggerFactory;
 /**
  * A day counter and clock centred just above the hotbar (or in a corner of the screen). At 6:00 PM,
  * an hour before night, that line reads "The sun's getting real low" for a few seconds, and the
- * clock stays gold until 7:00 PM.
+ * clock stays gold until it's dark enough for monsters, counting down the seconds ("dark in 42s").
+ * When thunder starts, the line reads "Storm's rolling in" for a few seconds. In the Nether and the
+ * End, the clock shows the Overworld's day and time.
  *
  * The time is read from where the sun actually is, not from how far through the day's
  * ticks the world is. A pack that makes the day longer, or stretches daylight more than
@@ -42,6 +45,8 @@ public class NightfallClock {
 	private static final int EFFECT_ROW = 26;
 	private static final int WHITE = 0xFFFFFFFF;
 	private static final int GOLD = 0xFFFFAA00;
+	/** Vanilla's aqua text colour, for the storm message. */
+	private static final int AQUA = 0xFF55FFFF;
 	private static final int SUNSET_MINUTE = DuskWatch.SUNSET_MINUTE;
 	private static final int NIGHT_MINUTE = 19 * 60;
 
@@ -78,30 +83,64 @@ public class NightfallClock {
 	}
 
 	private static final DuskWatch DUSK = new DuskWatch();
-	/** The clock text last made, for which time and format, so it isn't rebuilt every frame. */
+	private static final StormWatch STORM = new StormWatch();
+	private static final DarkCountdown DARK = new DarkCountdown();
+	/** The clock text last made, for which time, format and countdown, so it isn't rebuilt every frame. */
 	private static DayTime shownTime;
 	private static boolean shownTwelveHour;
+	private static int shownSeconds = -1;
 	private static Component shownText;
 	private static int duskTicksLeft = 0;
+	private static int stormTicksLeft = 0;
+	/** The world the messages above were for: a message ends when you change worlds (a portal mid-storm). */
+	private static ClientLevel messageLevel;
+	/** Seconds until monsters can spawn outside, while the clock counts down to dark; -1 otherwise. */
+	private static int darkSeconds = -1;
 	/** Fades the clock back in (0 to FADE_TICKS) after something else had its line. */
 	private static int clockShown = FADE_TICKS;
 	/** How long vanilla's action bar has been showing without a break. */
 	private static int actionBarTicks = 0;
 
-	/** The clock text for this time, made again only when the time or the format changes. */
+	/** The clock text for this time, made again only when the time, the format or the countdown changes. */
 	private static Component textFor(DayTime time) {
 		boolean twelveHour = Config.timeFormat.twelveHour();
-		if (!time.equals(shownTime) || twelveHour != shownTwelveHour || shownText == null) {
+		if (!time.equals(shownTime) || twelveHour != shownTwelveHour || darkSeconds != shownSeconds || shownText == null) {
 			shownTime = time;
 			shownTwelveHour = twelveHour;
-			shownText = time.describe();
+			shownSeconds = darkSeconds;
+			shownText = describe(time, darkSeconds);
 		}
 		return shownText;
+	}
+
+	/**
+	 * The whole clock line: "Day 4 · 6:42 PM · dark in 24s" while counting down, and
+	 * "Overworld: Day 4 · 9:12 PM" in the Nether and the End.
+	 */
+	static Component describe(DayTime time, int seconds) {
+		Component text = time.describe();
+		if (seconds >= 0) {
+			Component left = seconds < 60
+					? Component.translatable("hud.nightfallclock.seconds", seconds)
+					: Component.translatable("hud.nightfallclock.minutes", seconds / 60, String.format(Locale.ROOT, "%02d", seconds % 60));
+			text = Component.translatable("hud.nightfallclock.countdown", text, left);
+		}
+		return time.elsewhere() ? Component.translatable("hud.nightfallclock.overworld", text) : text;
 	}
 
 	/** Whether "The sun's getting real low" is up just now. For the game tests. */
 	static boolean duskShowing() {
 		return duskTicksLeft > 0;
+	}
+
+	/** Whether "Storm's rolling in" is up just now. For the game tests. */
+	static boolean stormShowing() {
+		return stormTicksLeft > 0;
+	}
+
+	/** The seconds the clock is counting down to dark, or -1. For the game tests. */
+	static int darkSeconds() {
+		return darkSeconds;
 	}
 
 	/** Whether the clock above the hotbar has stepped aside for something else on its line. For the game tests. */
@@ -119,20 +158,22 @@ public class NightfallClock {
 		if (time == null) {
 			return;
 		}
-		boolean dusk = duskTicksLeft > 0;
-		int duskColour = (Math.max(8, Math.min(255, duskTicksLeft * 255 / FADE_TICKS)) << 24) | (GOLD & 0xFFFFFF);
-		Component duskText = Component.translatable("hud.nightfallclock.dusk");
 		boolean clock = Config.clock && mc.player != null;
 		Component text = textFor(time);
-		int colour = time.minute() >= SUNSET_MINUTE && time.minute() < NIGHT_MINUTE ? GOLD : WHITE;
+		// Gold from 6:00 PM until dark (7:00 PM, or later while it's still counting down).
+		int colour = time.minute() >= SUNSET_MINUTE && (time.minute() < NIGHT_MINUTE || darkSeconds >= 0) ? GOLD : WHITE;
 
 		if (clock && Config.position != Config.Position.ABOVE_HOTBAR) {
 			inCorner(graphics, mc, Config.position, text, colour, mc.screen instanceof ChatScreen);
 		}
-		if (dusk) {
-			// The dusk message has the line to itself, stepping around vanilla's text so it's
-			// never missed.
-			aboveHotbar(graphics, mc, duskText, duskColour, true);
+		if (duskTicksLeft > 0 || stormTicksLeft > 0) {
+			// A message has the line to itself, stepping around vanilla's text so it's never missed.
+			// Dusk first, if both arrive together.
+			boolean dusk = duskTicksLeft > 0;
+			int ticksLeft = dusk ? duskTicksLeft : stormTicksLeft;
+			int alpha = Math.max(8, Math.min(255, ticksLeft * 255 / FADE_TICKS));
+			Component message = Component.translatable(dusk ? "hud.nightfallclock.dusk" : "hud.nightfallclock.storm");
+			aboveHotbar(graphics, mc, message, (alpha << 24) | ((dusk ? GOLD : AQUA) & 0xFFFFFF), true);
 		} else if (clock && Config.position == Config.Position.ABOVE_HOTBAR) {
 			if (actionBarTicks > PERMANENT_ACTION_BAR) {
 				// A server keeping its own text in the action bar: show alongside it instead of hiding,
@@ -287,38 +328,93 @@ public class NightfallClock {
 	public static void tick(Minecraft mc) {
 		if (mc.level == null || mc.player == null) {
 			DUSK.update(null, -1);
+			STORM.update(null, false);
 			duskTicksLeft = 0;
+			stormTicksLeft = 0;
+			darkSeconds = -1;
 			return;
+		}
+		if (mc.level != messageLevel) {
+			messageLevel = mc.level;
+			duskTicksLeft = 0;
+			stormTicksLeft = 0;
+		}
+		if (STORM.update(mc.level, mc.level.isThundering()) && Config.stormWarning) {
+			stormTicksLeft = DUSK_TICKS;
 		}
 		DayTime time = DayTime.of(mc.level);
-		if (time == null) {
+		if (time == null || time.elsewhere()) {
+			// No day here, or only the Overworld's (no sky of its own to watch): no dusk, no countdown.
 			DUSK.update(mc.level, -1);
 			duskTicksLeft = 0;
+			darkSeconds = -1;
+		}
+		if (time == null) {
+			stormTicksLeft = 0;
 			return;
 		}
-		if (!mc.isPaused()) {
+		if (mc.isPaused()) {
+			// The sun stands still while paused, so the light's fall is timed afresh afterwards.
+			DARK.reset();
+		} else {
 			if (duskTicksLeft > 0) {
 				duskTicksLeft--;
 			}
+			if (stormTicksLeft > 0) {
+				stormTicksLeft--;
+			}
+			if (!time.elsewhere()) {
+				darkSeconds = countdown(mc.level, time);
+			}
 			boolean busy = lineBusy(mc, textFor(time));
-			clockShown = busy || duskTicksLeft > 0 ? 0 : Math.min(FADE_TICKS, clockShown + 1);
+			clockShown = busy || duskTicksLeft > 0 || stormTicksLeft > 0 ? 0 : Math.min(FADE_TICKS, clockShown + 1);
 			actionBarTicks = ((HudAccessor) mc.gui).nightfallclock$overlayMessageTime() > 0 ? actionBarTicks + 1 : 0;
 		}
-		if (DUSK.update(mc.level, time.minute()) && Config.duskWarning) {
+		if (!time.elsewhere() && DUSK.update(mc.level, time.minute()) && Config.duskWarning) {
 			duskTicksLeft = DUSK_TICKS;
 		}
 	}
 
-	/** The overworld day's position, or null when this dimension has no day cycle (the Nether, the End). */
-	record DayTime(int day, int minute) {
+	/**
+	 * Seconds until monsters can spawn outside, from 6:00 PM until then; -1 at any other time, with
+	 * the countdown off, or in a thunderstorm (when they can spawn already). Monsters can spawn under
+	 * open sky once the sky light, 15 minus the sky darkening, is at or below the dimension's monster
+	 * light limit (Monster.isDarkEnoughToSpawn). The darkening is Level.updateSkyBrightness's, without
+	 * its rounding down, so the light falls smoothly enough to time.
+	 */
+	private static int countdown(ClientLevel level, DayTime time) {
+		double rain = 1.0 - level.getRainLevel(1.0F) * 5.0F / 16.0;
+		double thunder = 1.0 - level.getThunderLevel(1.0F) * 5.0F / 16.0;
+		double sun = 0.5 + 2.0 * Mth.clamp(Mth.cos(level.getTimeOfDay(1.0F) * (float) (Math.PI * 2)), -0.25, 0.25);
+		float light = (float) (15.0 - (1.0 - sun * rain * thunder) * 11.0);
+		int seconds = DARK.update(level, System.nanoTime(), light, level.dimensionType().monsterSpawnLightTest().getMaxValue());
+		return Config.countdown && time.minute() >= SUNSET_MINUTE && !level.isThundering() ? seconds : -1;
+	}
+
+	/**
+	 * The overworld day's position, or null when there's none to show. Elsewhere is true in a world
+	 * without its own day (the Nether, the End), which shows the Overworld's: every world shares the
+	 * Overworld's day count, and the server sends it to players wherever they are.
+	 */
+	record DayTime(int day, int minute, boolean elsewhere) {
+		DayTime(int day, int minute) {
+			this(day, minute, false);
+		}
+
 		static DayTime of(ClientLevel level) {
-			// 1.21.1 has no timelines: a dimension with a fixed time (the Nether, the End) has no day.
+			int day = (int) (level.getDayTime() / 24000L) + 1;
+			// 1.21.1 has no timelines: a dimension with a fixed time (the Nether, the End) has no day of its own.
 			if (level.dimensionType().hasFixedTime()) {
-				return null;
+				if (!Config.overworldTime) {
+					return null;
+				}
+				// No sun to read here, so the Overworld's vanilla clock: tick 0 is 6:00 AM, 1000 ticks to the hour.
+				int minute = (int) ((level.getDayTime() + 6000L) % 24000L * 60L / 1000L);
+				return new DayTime(day, minute, true);
 			}
 			// getSunAngle is in radians, 0 at noon, after the same easing as above.
 			float sunAngle = (float) Math.toDegrees(level.getSunAngle(1.0F));
-			return new DayTime((int) (level.getDayTime() / 24000L) + 1, minuteFromSun(sunAngle));
+			return new DayTime(day, minuteFromSun(sunAngle));
 		}
 
 		/** The vanilla clock time (minutes after midnight) at which the sun stands at this angle. */

@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.4.0+1.21.1
+
+- After 6:00 PM, the clock counts down to dark: "Day 4 · 6:42 PM · dark in 24s". It counts real seconds to the moment it's dark enough for monsters to spawn outside, timed from how fast the sky is really getting darker, so it stays right on longer days and in rain. The clock stays gold until then.
+- "Storm's rolling in" shows above the hotbar when thunder starts, since monsters can spawn in daylight during a thunderstorm.
+- In the Nether and the End, the clock now shows the Overworld's day and time ("Overworld: Day 4 · 9:12 PM"), so you know whether it's night before you head back.
+- Each new part has its own setting: Countdown to Dark, Storm Warning and Overworld Time.
+
+## 0.2.1+1.21.1 and 0.2.1+1.20.1
 
 - Nightfall Clock now comes for Minecraft 1.21.1 too, on Fabric and on NeoForge: the same clock, dusk warning and settings. On NeoForge the settings are on the Mods screen's Config button.
 - Nightfall Clock now comes for Minecraft 1.20.1, on Fabric and on Forge. It's the same clock as 0.2.1: the day and time above your hotbar, gold from 6:00 PM, "The sun's getting real low" when dusk arrives as you play, and the same settings (position, 12- or 24-hour time, Text Background).

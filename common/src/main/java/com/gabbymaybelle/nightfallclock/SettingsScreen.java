@@ -25,6 +25,9 @@ public class SettingsScreen extends OptionsSubScreen {
 		list.addSmall(
 				toggle("clock", Config.clock, v -> Config.clock = v),
 				toggle("duskWarning", Config.duskWarning, v -> Config.duskWarning = v),
+				toggle("countdown", Config.countdown, v -> Config.countdown = v),
+				toggle("stormWarning", Config.stormWarning, v -> Config.stormWarning = v),
+				toggle("overworldTime", Config.overworldTime, v -> Config.overworldTime = v),
 				choice("position", Config.Position.values(), Config.position, v -> Config.position = v),
 				choice("timeFormat", Config.TimeFormat.values(), Config.timeFormat, v -> Config.timeFormat = v));
 	}
