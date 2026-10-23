@@ -31,10 +31,6 @@ W, H = 1080, 1920
 GOLD = (255, 170, 0)
 NAME = 'nightfall-clock-short-2'
 repo = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
-work = os.path.join(out, 'work-short-2')
-shutil.rmtree(work, ignore_errors=True)
-os.makedirs(os.path.join(work, 'frames'))
-
 with open(os.path.join(frames_dir, 'actions.tsv')) as f:
     actions = [(r[0], int(r[1]), r[2], r[3]) for r in csv.reader(f, delimiter='\t')]
 
@@ -47,21 +43,40 @@ def count(scene):
     return len([n for n in os.listdir(frames_dir) if n.startswith(scene + '_') and n.endswith('.png')])
 
 
-dusk, turn = at('s_chop', 'dusk'), at('s_chop', 'turn')
-HOUR = ['AN HOUR', '*BEFORE* DARK']
-# Each piece: (filmed scene, first frame, frame after the last, caption lines with *gold* words, caption top).
-PIECES = [
-    ('s_chop', dusk, turn, None, 0),
-    ('s_chop', turn, count('s_chop'), HOUR, 400),
-    ('s_run1', 0, count('s_run1'), HOUR, 400),
-    ('s_run2', 0, count('s_run2'), HOUR, 400),
-    ('s_porch', 0, count('s_porch'), ['HOME IN *TIME*'], 400),
-    ('s_door', 0, min(count('s_door'), at('s_door', 'door_close') + 28), None, 0),
-    # Back to the swings before the warning, at the first shot's angle: it runs into the first frame.
-    ('s_chop', 0, dusk, ['FOLLOW FOR MORE', '*COZY* MODS'], 1250),
-]
+# The third Short, "Dark in 24s" (0.4.0; plan: mods-media nightfall-clock/SHORT-3-PLAN.md), from VideoTour's
+# -PvideoShort3 frames (c_ scenes): the same assembly, its own pieces. Her voice goes on afterwards with
+# add_voice.py.
+SHORT3 = count('c_walk') > 0
+if SHORT3:
+    NAME = 'nightfall-clock-short-3'
+    DARK = ['COUNTDOWN', 'TO *DARK*']
+    # By the bed the countdown runs out ("dark"), then she gets into bed: the follow line from then on.
+    follow = at('c_bed', 'dark')
+    PIECES = [
+        ('c_walk', 0, count('c_walk'), DARK, 400),
+        ('c_run', 0, count('c_run'), DARK, 400),
+        ('c_bed', 0, follow, None, 0),
+        ('c_bed', follow, count('c_bed'), ['FOLLOW FOR MORE', '*COZY* MODS'], 1250),
+    ]
+else:
+    dusk, turn = at('s_chop', 'dusk'), at('s_chop', 'turn')
+    HOUR = ['AN HOUR', '*BEFORE* DARK']
+    # Each piece: (filmed scene, first frame, frame after the last, caption lines with *gold* words, caption top).
+    PIECES = [
+        ('s_chop', dusk, turn, None, 0),
+        ('s_chop', turn, count('s_chop'), HOUR, 400),
+        ('s_run1', 0, count('s_run1'), HOUR, 400),
+        ('s_run2', 0, count('s_run2'), HOUR, 400),
+        ('s_porch', 0, count('s_porch'), ['HOME IN *TIME*'], 400),
+        ('s_door', 0, min(count('s_door'), at('s_door', 'door_close') + 28), None, 0),
+        # Back to the swings before the warning, at the first shot's angle: it runs into the first frame.
+        ('s_chop', 0, dusk, ['FOLLOW FOR MORE', '*COZY* MODS'], 1250),
+    ]
 for scene, first, last, *_ in PIECES:
     assert 0 <= first < last <= count(scene), f'{scene}: frames {first}-{last} of {count(scene)}'
+work = os.path.join(out, 'work-' + NAME[len('nightfall-clock-'):])
+shutil.rmtree(work, ignore_errors=True)
+os.makedirs(os.path.join(work, 'frames'))
 
 FONTS = [os.environ.get('CAPTION_FONT', ''), 'C:/Windows/Fonts/ariblk.ttf', '/usr/share/fonts/truetype/msttcorefonts/Arial_Black.ttf',
          '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf']
@@ -76,7 +91,10 @@ def font(paths, size):
 
 
 def run(*args):
-    subprocess.run(args, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    # -nostdin and no stdin: from a background shell, ffmpeg otherwise waits for keyboard input.
+    if args[0] == 'ffmpeg':
+        args = ('ffmpeg', '-nostdin') + args[1:]
+    subprocess.run(args, check=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
 
 CAPTION, SIZE, STROKE, LEAD = font(FONTS, 84), 84, 7, 104
@@ -298,8 +316,12 @@ for (scene, first, last, *_), piece_length in zip(PIECES, lengths):
             cue(t(f), 'door_close1', 0.9)
         elif k == 'zombie':
             cue(t(f) + 1.0, 'zombie1', 0.45, 0.95)
+    if scene == 'c_bed':
+        for f, k in marks:
+            if k == 'bed':
+                cue(t(f), f'step_wood{random.randint(1, 6)}', 0.35)
     run_at = [f for f, k in marks if k == 'run']
-    if run_at or scene in ('s_run1', 's_run2', 's_porch'):
+    if run_at or scene in ('s_run1', 's_run2', 's_porch', 'c_walk', 'c_run'):
         start = run_at[0] if run_at else first
         stop = last - 12 if scene == 's_porch' else last
         for f in range(max(first, start + 2), stop, 6):
@@ -348,7 +370,7 @@ for k, (track, start) in enumerate(music, 1):
 
 # ------------------------------------------------------------------ the cover
 # An opening frame with the warning lifted, and the mod's name large at the top of the safe area.
-thumb = Image.open(os.path.join(frames_dir, 's_chop_%04d.png' % (dusk + 4))).convert('RGBA')
+thumb = Image.open(os.path.join(frames_dir, ('c_walk_%04d.png' % 30) if SHORT3 else ('s_chop_%04d.png' % (dusk + 4)))).convert('RGBA')
 warning = lift(thumb)
 thumb.alpha_composite(warning, ((W - warning.width) // 2, LIFT_Y + 60 - warning.height // 2))
 d = ImageDraw.Draw(thumb)

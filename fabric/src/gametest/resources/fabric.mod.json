@@ -12,6 +12,9 @@
 			"com.gabbymaybelle.nightfallclock.VideoTour"
 		]
 	},
+	"mixins": [
+		"nightfallclock-gametest.mixins.json"
+	],
 	"depends": {
 		"nightfallclock": "*"
 	}

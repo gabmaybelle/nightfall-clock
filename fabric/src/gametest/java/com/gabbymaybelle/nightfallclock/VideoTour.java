@@ -66,10 +66,14 @@ public class VideoTour implements FabricClientGameTest {
 		boolean dusk = Config.duskWarning;
 		boolean autoJump = context.computeOnClient(mc -> mc.options.autoJump().get());
 		double fovEffect = context.computeOnClient(mc -> mc.options.fovEffectScale().get());
+		boolean countdown = Config.countdown;
 		Config.position = Config.Position.ABOVE_HOTBAR;
 		Config.timeFormat = Config.TimeFormat.TWELVE_HOUR;
 		Config.clock = true;
 		Config.duskWarning = true;
+		Config.countdown = true;
+		// The third Short's countdown reads the video's clock, not the computer's (see VideoClock).
+		VideoClock.on = short3();
 		// The run home goes up a step or two at the woods and the porch: jump them as a player would.
 		context.runOnClient(mc -> mc.options.autoJump().set(true));
 		// No sprinting zoom, and none from the slower walk below: the view stays put mid-shot.
@@ -81,6 +85,8 @@ public class VideoTour implements FabricClientGameTest {
 			Config.timeFormat = format;
 			Config.clock = clock;
 			Config.duskWarning = dusk;
+			Config.countdown = countdown;
+			VideoClock.on = false;
 			Config.save();
 			context.runOnClient(mc -> {
 				mc.options.autoJump().set(autoJump);
@@ -222,9 +228,18 @@ public class VideoTour implements FabricClientGameTest {
 
 	// ------------------------------------------------------------------ the scenes
 
+	/** Whether this take is the third Short, "Dark in 24s" ({@code -PvideoShort3}). */
+	private static boolean short3() {
+		return Boolean.getBoolean(PREFIX + ".videoShort3");
+	}
+
 	private void scenes() {
 		readSet();
 		film.window(1080, 1920, 3);
+		if (short3()) {
+			short3Scenes();
+			return;
+		}
 		if (film.scouting()) {
 			film.scene("x_set_edge", this::setEdge);
 			film.scene("x_set_run", this::setRun);
@@ -400,6 +415,159 @@ public class VideoTour implements FabricClientGameTest {
 		Film.check(!ctx(mc -> mc.level.getBlockState(lower).getValue(DoorBlock.OPEN)), "the door is shut");
 	}
 
+	// ------------------------------------------------------------------ the third Short, "Dark in 24s" (0.4.0)
+
+	/** Vanilla's dark point in clear weather: the sky light reaches the monster limit (7) at about this tick. */
+	private static final int DARK = 13178;
+
+	/**
+	 * The third Short (plan: mods-media nightfall-clock/SHORT-3-PLAN.md): 0.4.0's countdown to dark, a
+	 * race home. Walking up from the woods at sunset with the countdown ticking on the clock, the run up
+	 * the path and the porch as it drops, and inside, into bed as it runs out. Each cut starts later in
+	 * the evening, so the number only goes down.
+	 */
+	private void short3Scenes() {
+		if (film.scouting()) {
+			film.scene("x_set_run", this::setRun);
+		}
+		// The way home is about 20 blocks: walking at the usual pace covered all of it in 4 s (take 3), so
+		// the walk is slower and covers the first half, from the woods into the garden, and the run the rest.
+		film.scene("c_walk", () -> countdownCut(0.0, 12540, 70, false));
+		film.scene("c_run", () -> countdownCut(0.55, 12800, 90, true));
+		film.scene("c_bed", this::bed);
+	}
+
+	/** One cut of the way home, {@code along} it, from {@code time}: walking or at a sprint, the countdown on the clock. */
+	private void countdownCut(double along, int time, int frames, boolean sprint) {
+		int leg = legAt(along);
+		Vec3 at = pointAt(along);
+		Vec3 feet = new Vec3(at.x, film.ground((int) Math.floor(at.x), (int) Math.floor(at.z)), at.z);
+		Vec3 ahead = route.get(leg + 1);
+		ready(feet, new Vec3(ahead.x, feet.y + 1.5, ahead.z), true, time);
+		door(true);
+		if (!sprint) {
+			// An unhurried evening walk: 0.035 against ready()'s 0.05 (both halved for the filming pace).
+			film.server.runCommand("attribute @a minecraft:movement_speed base set 0.035");
+			film.ctx.runOnClient(mc -> mc.player.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(0.035));
+		}
+		leadIn();
+		film.rolling();
+		run(leg + 1, frames, sprint);
+		Film.check(shownSeconds() >= 0, "the countdown is still on the clock at the end of the cut");
+	}
+
+	/**
+	 * Inside at the end of the evening, the door shut behind her: she crosses the room to the cottage's
+	 * own bed as the countdown runs out on the clock (4, 3, 2, 1, gone), and then gets into bed (vanilla
+	 * lets her from about 6:32 PM in clear weather) and the sleep fades in. In that order because in bed
+	 * vanilla's own screen takes the clock's line, so a countdown running out there isn't seen (take 4);
+	 * walking, because standing still by the bed for the whole countdown held the shot still for 4.6 s
+	 * (Gabby, take 5). The bed is vanilla; nothing says the mod tells you when to sleep, and it doesn't.
+	 */
+	private void bed() {
+		Vec3 start = spot(0, 1, -8.6);
+		BlockPos foot = cottageBed(start);
+		Film.check(foot != null, "the cottage has a bed on the ground floor");
+		Vec3 pillow = Vec3.atCenterOf(foot).add(0, -0.3, 0);
+		// She stops a step short of the bed's foot, on her side of it.
+		Vec3 bedside = Vec3.atBottomCenterOf(foot).add(start.subtract(Vec3.atBottomCenterOf(foot)).normalize().scale(1.3));
+		bedside = new Vec3(bedside.x, start.y, bedside.z);
+		ready(start, pillow, true, DARK - 106);
+		door(false);
+		leadIn();
+		// An unhurried walk across the room, so it takes most of the countdown (the room is a few blocks).
+		film.server.runCommand("attribute @a minecraft:movement_speed base set 0.018");
+		film.ctx.runOnClient(mc -> mc.player.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(0.018));
+		film.rolling();
+		film.ctx.getInput().holdKey(o -> o.keyUp);
+		try {
+			for (int i = 0; i < 120 && shownSeconds() >= 0; i++) {
+				Vec3 at = ctx(mc -> mc.player.position());
+				if (flat(at, bedside) < 0.4) {
+					film.ctx.getInput().releaseKey(o -> o.keyUp);
+				} else {
+					float yaw = (float) Math.toDegrees(Math.atan2(-(bedside.x - at.x), bedside.z - at.z));
+					yawTo(yaw, 6);
+				}
+				tick();
+			}
+		} finally {
+			film.ctx.getInput().releaseKey(o -> o.keyUp);
+		}
+		film.note("bedside", "she stopped " + String.format(Locale.ROOT, "%.1f", flat(ctx(mc -> mc.player.position()), bedside)) + " blocks from the bedside");
+		Film.check(shownSeconds() < 0, "the countdown ran out on the clock (it shows " + shownSeconds() + ")");
+		film.log("dark", "");
+		for (int i = 0; i < 12; i++) {
+			tick();
+		}
+		film.aim(foot);
+		film.ctx.getInput().pressKey(o -> o.keyUse);
+		film.log("bed", "");
+		boolean slept = false;
+		// Vanilla wakes her after 5 s asleep, since the night can't pass here: the fade is filmed before then.
+		for (int i = 0; i < 44; i++) {
+			tick();
+			// Getting into bed says "Respawn point set" in chat; it goes before it's filmed.
+			film.quiet();
+			if (!slept && ctx(mc -> mc.player.isSleeping())) {
+				slept = true;
+				// Her own view from the bed, as a player sees it: from behind, the camera sat in the pillow (scout).
+				film.thirdPerson(false, BEHIND);
+			}
+		}
+		Film.check(slept, "she got into bed");
+	}
+
+	/** The foot of the cottage's own bed on the ground floor, the one nearest {@code from}, or null. */
+	private BlockPos cottageBed(Vec3 from) {
+		return film.server.computeOnServer(s -> {
+			ServerLevel level = s.overworld();
+			BlockPos best = null;
+			double bestD = Double.MAX_VALUE;
+			for (BlockPos p : BlockPos.betweenClosed(sx - 9, sy + 1, sz - 22, sx + 9, sy + 1, sz - 7)) {
+				BlockState state = level.getBlockState(p);
+				if (state.getBlock() instanceof net.minecraft.world.level.block.BedBlock
+						&& state.getValue(net.minecraft.world.level.block.BedBlock.PART) == net.minecraft.world.level.block.state.properties.BedPart.FOOT) {
+					double d = flat(Vec3.atCenterOf(p), from);
+					if (d < bestD) {
+						bestD = d;
+						best = p.immutable();
+					}
+				}
+			}
+			return best;
+		});
+	}
+
+	/**
+	 * Off camera, a cut's first half second of evening, so the countdown has light readings to time
+	 * (it shows nothing for its first half second) and its number has settled when filming starts.
+	 */
+	private void leadIn() {
+		VideoClock.cut();
+		for (int i = 0; i < 16; i++) {
+			film.server.runCommand("time add 1");
+			VideoClock.tick();
+			film.ctx.waitTicks(1);
+		}
+		int now = ctx(mc -> (int) (mc.level.getDefaultClockTime() % 24000));
+		int expected = (int) Math.ceil((DARK - now) / 20.0);
+		int shown = shownSeconds();
+		film.note("countdown", "at tick " + now + " it shows " + shown + " s (about " + expected + " s by vanilla's dark point)");
+		Film.check(Math.abs(shown - expected) <= 2, "the countdown reads about " + expected + " s at tick " + now + " (it shows " + shown + ")");
+	}
+
+	/** The countdown the clock shows just now, in seconds; -1 when it shows none. */
+	private static int shownSeconds() {
+		try {
+			java.lang.reflect.Field f = NightfallClock.class.getDeclaredField("darkSeconds");
+			f.setAccessible(true);
+			return f.getInt(null);
+		} catch (ReflectiveOperationException e) {
+			throw new AssertionError("can't read the countdown", e);
+		}
+	}
+
 	// ------------------------------------------------------------------ moves
 
 	/**
@@ -455,8 +623,15 @@ public class VideoTour implements FabricClientGameTest {
 	 * frames} frames or until the last waypoint.
 	 */
 	private void run(int next, int frames) {
+		run(next, frames, true);
+	}
+
+	/** As {@link #run(int, int)}, walking instead of sprinting when {@code sprint} is false. */
+	private void run(int next, int frames, boolean sprint) {
 		film.ctx.getInput().holdKey(o -> o.keyUp);
-		film.ctx.getInput().holdKey(o -> o.keySprint);
+		if (sprint) {
+			film.ctx.getInput().holdKey(o -> o.keySprint);
+		}
 		film.log("run", "");
 		int target = next;
 		try {
@@ -473,7 +648,7 @@ public class VideoTour implements FabricClientGameTest {
 				}
 				float yaw = (float) Math.toDegrees(Math.atan2(-(to.x - at.x), to.z - at.z));
 				yawTo(yaw, 8);
-				film.ctx.runOnClient(mc -> mc.player.setSprinting(true));
+				film.ctx.runOnClient(mc -> mc.player.setSprinting(sprint));
 				tick();
 			}
 		} finally {
@@ -506,6 +681,7 @@ public class VideoTour implements FabricClientGameTest {
 	/** One frame, with a game tick's worth of time passing: the clock ticks along in real time. */
 	private void tick() {
 		film.server.runCommand("time add 1");
+		VideoClock.tick();
 		film.record(1);
 	}
 

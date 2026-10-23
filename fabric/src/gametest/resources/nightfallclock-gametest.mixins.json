@@ -1,0 +1,11 @@
+{
+	"required": true,
+	"package": "com.gabbymaybelle.nightfallclock.filmmixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"FilmClockMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
