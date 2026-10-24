@@ -3,6 +3,7 @@
 	"package": "com.gabbymaybelle.nightfallclock.filmmixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"FilmCameraMixin",
 		"FilmClockMixin"
 	],
 	"injectors": {

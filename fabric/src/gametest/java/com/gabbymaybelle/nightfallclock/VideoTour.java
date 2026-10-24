@@ -56,7 +56,8 @@ public class VideoTour implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
-		if (!Film.on(PREFIX)) {
+		// Part 3 of the series films on its own (Part3); this tour steps aside then.
+		if (!Film.on(PREFIX) || Part3.on()) {
 			return;
 		}
 		film = new Film(context, PREFIX, "video_tour");
@@ -433,6 +434,15 @@ public class VideoTour implements FabricClientGameTest {
 		// The way home is about 20 blocks: walking at the usual pace covered all of it in 4 s (take 3), so
 		// the walk is slower and covers the first half, from the woods into the garden, and the run the rest.
 		film.scene("c_walk", () -> countdownCut(0.0, 12540, 70, false));
+		// The same walk seen from ahead of her, for the cozy-mods roundup.
+		film.scene("c_front", () -> {
+			frontWalk = true;
+			try {
+				countdownCut(0.0, 12540, 70, false);
+			} finally {
+				frontWalk = false;
+			}
+		});
 		film.scene("c_run", () -> countdownCut(0.55, 12800, 90, true));
 		film.scene("c_bed", this::bed);
 	}
@@ -649,13 +659,29 @@ public class VideoTour implements FabricClientGameTest {
 				float yaw = (float) Math.toDegrees(Math.atan2(-(to.x - at.x), to.z - at.z));
 				yawTo(yaw, 8);
 				film.ctx.runOnClient(mc -> mc.player.setSprinting(sprint));
+				if (frontWalk) {
+					// The roundup's take (Gabby, 2026-10-23: her in third person, facing the camera): the camera
+					// walks backwards ahead of her, a little to her right and above her eyes, the clock still on.
+					Vec3 ahead = new Vec3(to.x - at.x, 0, to.z - at.z).normalize();
+					Vec3 side = new Vec3(-ahead.z, 0, ahead.x);
+					Vec3 eye = at.add(ahead.scale(3.4)).add(side.scale(-0.9)).add(0, 1.8, 0);
+					int ground = film.ground((int) Math.floor(eye.x), (int) Math.floor(eye.z));
+					eye = new Vec3(eye.x, Math.max(eye.y, ground + 1.9), eye.z);
+					Part3.freeEye = eye;
+					Part3.freeLook = at.add(0, 1.4, 0);
+					Part3.freeCamera = true;
+				}
 				tick();
 			}
 		} finally {
 			film.ctx.getInput().releaseKey(o -> o.keyUp);
 			film.ctx.getInput().releaseKey(o -> o.keySprint);
+			Part3.freeCamera = false;
 		}
 	}
+
+	/** While true, {@link #run} films from ahead of her (Part3's camera mixin) instead of from behind. */
+	private boolean frontWalk;
 
 	/** Distance on the ground, ignoring height. */
 	private static double flat(Vec3 a, Vec3 b) {

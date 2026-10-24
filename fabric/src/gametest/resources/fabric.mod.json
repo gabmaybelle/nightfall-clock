@@ -9,7 +9,8 @@
 	"entrypoints": {
 		"fabric-client-gametest": [
 			"com.gabbymaybelle.nightfallclock.NightfallClockGameTest",
-			"com.gabbymaybelle.nightfallclock.VideoTour"
+			"com.gabbymaybelle.nightfallclock.VideoTour",
+			"com.gabbymaybelle.nightfallclock.Part3"
 		]
 	},
 	"mixins": [

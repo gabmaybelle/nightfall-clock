@@ -37,6 +37,11 @@ dependencies {
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 	// Optional: only for the settings button in Mod Menu.
 	compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+	// Filming only, `-PvideoMods=<folder>`: also load every jar in that folder (Iris and Sodium for a
+	// shader, Replay Mod) in the game test. Never part of the mod.
+	if (project.hasProperty("videoMods")) {
+		runtimeOnly fileTree(project.videoMods) { include "*.jar" }
+	}
 }
 
 processResources {
@@ -56,6 +61,19 @@ processResources {
 if (project.hasProperty("videoTour")) {
 	tasks.matching { it.name == 'runClientGameTest' }.configureEach {
 		systemProperty 'nightfallclock.videoTour', 'true'
+		// -PvideoShaders=<shader pack zip>: film with that Iris shader pack on (Iris and Sodium come in
+		// with -PvideoMods). Copied into the game's own run folder before launch, where Iris reads it
+		// as the game starts (as Cozy Core's filming does).
+		if (project.hasProperty('videoShaders')) {
+			def pack = file(project.videoShaders)
+			def run = file('build/run/clientGameTest')
+			doFirst {
+				copy { from pack; into new File(run, 'shaderpacks') }
+				def config = new File(run, 'config/iris.properties')
+				config.parentFile.mkdirs()
+				config.text = "enableShaders=true\nshaderPack=${pack.name}\n"
+			}
+		}
 		project.properties.each { name, value ->
 			if (name.startsWith('video') && name != 'videoTour') {
 				// A bare flag (-PvideoScout) arrives empty: pass it on as true.
