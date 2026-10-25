@@ -75,4 +75,4 @@ The jars are written to `fabric/build/libs/nightfallclock-fabric-<version>.jar` 
 
 [MIT](LICENSE).
 
-Nightfall Clock is made by Gabby with help from Claude, an AI assistant.
+Nightfall Clock is made by Gabby.
