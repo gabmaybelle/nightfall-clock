@@ -1,0 +1,21 @@
+# Nightfall Clock (Paper). Every player gets the clock unless they turn it off with /clock; each
+# setting here switches a part off for everyone. Changes apply when the server restarts.
+
+# The day and time in the action bar: "Day 4 · 2:35 PM". Gold from 6:00 PM until dark.
+clock: true
+
+# At 6:00 PM, "The sun's getting real low" as a title on the screen.
+duskWarning: true
+
+# After 6:00 PM, the clock counts down the real seconds until it's dark enough for monsters to
+# spawn outside: "Day 4 · 6:42 PM · dark in 24s".
+countdown: true
+
+# When thunder starts, "Storm's rolling in" as a title. Monsters can spawn in daylight during a thunderstorm.
+stormWarning: true
+
+# In the Nether and the End, the clock shows the Overworld's day and time.
+overworldTime: true
+
+# 12 or 24: the time format for players who haven't picked one with /clock 12 or /clock 24.
+timeFormat: 12

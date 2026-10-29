@@ -1,0 +1,45 @@
+// The Paper plugin: nightfallclock-paper-<version>.jar, for servers that run Paper. It is written
+// against the Paper API only (no Minecraft classes, no mixins, nothing from `common`), so one jar
+// runs on every Paper build of its Minecraft version. The clock's rules (the time from the day's
+// ticks, the countdown to dark, when dusk and a storm count as arriving) are its own plain Java,
+// following the mod's, and unit-tested here.
+plugins {
+	id 'xyz.jpenilla.run-paper' version "${run_paper_version}"
+}
+
+repositories {
+	maven {
+		name = 'papermc'
+		url = 'https://repo.papermc.io/repository/maven-public/'
+	}
+}
+
+dependencies {
+	// Versions are in gradle.properties. The server provides the API at run time, so it isn't bundled.
+	compileOnly "io.papermc.paper:paper-api:${project.paper_api_version}"
+
+	// Plain unit tests (the clock's rules): `./gradlew :paper:test`.
+	testImplementation "org.junit.jupiter:junit-jupiter:5.12.2"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+	filesMatching("plugin.yml") {
+		expand "version": version
+	}
+}
+
+// `./gradlew :paper:runServer` downloads a Paper server into paper/run and starts it with the plugin
+// (a console, no window). tools/paper-server-test.js is the test that checks the clock on one.
+tasks.named('runServer') {
+	minecraftVersion '26.3'
+}
+
+tasks.named('jar') { archiveBaseName = "${rootProject.name}-paper" }
+tasks.named('sourcesJar') { archiveBaseName = "${rootProject.name}-paper" }

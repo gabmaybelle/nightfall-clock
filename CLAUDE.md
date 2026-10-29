@@ -1,6 +1,6 @@
 # Nightfall Clock
 
-A client-side Fabric and NeoForge mod for Minecraft 26.2 and 26.3: a day counter and clock above the hotbar, and "The sun's getting real low" at 6:00 PM. It reads the time from the sun's angle, not from tick counts, so it stays right on packs with longer or stretched days. See README.md for what players see.
+A client-side Fabric and NeoForge mod for Minecraft 26.2 and 26.3: a day counter and clock above the hotbar, and "The sun's getting real low" at 6:00 PM. It reads the time from the sun's angle, not from tick counts, so it stays right on packs with longer or stretched days. There is also a Paper server plugin (`paper/`): the same clock in every player's action bar, with the dusk and storm warnings as titles. See README.md for what players see.
 
 `PROGRESS.md` says what's done, what's broken and what's next, with a row per session: read
 it first, and add this session's row before ending.
@@ -15,21 +15,25 @@ it first, and add this session's row before ending.
   - `mixin/HudAccessor.java` and `mixin/ChatComponentAccessor.java`: read-only accessors for vanilla fields.
 - `fabric/`: `NightfallClockFabric` (Fabric API HUD and tick events), `ModMenuIntegration` (optional, compile-only), `fabric.mod.json`, and `src/gametest/`, a separate test mod (`nightfallclock-gametest`) with a Fabric client game test.
 - `neoforge/`: `NightfallClockNeoForge` (GUI layer and tick events, settings button on the Mods screen) and `neoforge.mods.toml`, and `src/clienttest/`: the NeoForge in-game test (`ClientTest`, a small step runner, and `NightfallClockClientTest`, the same checks as the Fabric game test). It joins the mod only in dev runs, so it's never in the jar.
+- `paper/`: the Paper server plugin, `nightfallclock-paper-<version>.jar`, written against the Paper API only (`compileOnly paper-api`, never `common`, no Minecraft classes). `NightfallClockPlugin` (the tick task: dusk and storm watches per world, the action bar every 10 ticks, titles; per-player choices in the player's persistent data), `ClockCommand` (`/clock`, `/clock on|off|12|24`, and `/clock selftest` for operators, which prints what the clock reads so the headless test can check it), and the rules as plain Java with unit tests: `DayClock` (the time from the day's ticks, the countdown to dark from vanilla's sky-light keyframes, the line's words), `DuskWatch` and `StormWatch` (the mod's rules, one per world). `plugin.yml` (`api-version: '26.3'`) and the bundled `config.yml`.
 - `tools/generate-icon.js`: draws `icon.png` (`node tools/generate-icon.js`).
+- `tools/paper-server-test.js`: the headless Paper server test (below).
 
 ## Build and test
 
 Needs JDK 25.
 
-- `./gradlew build`: `fabric/build/libs/nightfallclock-fabric-<version>.jar` and `neoforge/build/libs/nightfallclock-neoforge-<version>.jar`.
+- `./gradlew build`: `fabric/build/libs/nightfallclock-fabric-<version>.jar`, `neoforge/build/libs/nightfallclock-neoforge-<version>.jar` and `paper/build/libs/nightfallclock-paper-<version>.jar`.
 - `./gradlew :fabric:runClient` / `:neoforge:runClient`: a dev game with the mod.
 - `./gradlew :fabric:runClientGameTest` (Fabric only): launches the game, checks the settings file (typos, unknown settings, safe saving), opens a world and checks the accessors, the clock time at several `/time set` points, the dusk warning, the countdown to dark, the storm warning, the clock text in both formats and the Overworld's time in the Nether. It needs a display. Screenshots go to `fabric/build/run/clientGameTest/screenshots/`.
 - `./gradlew :neoforge:runClientTest` (NeoForge): the same checks as the Fabric game test, in a fresh flat creative world. A failed check crashes the game with a report in `neoforge/build/run/clientTest/crash-reports/`, so the task fails; a watchdog stops a run that hangs for 10 minutes. Screenshots go to `neoforge/build/run/clientTest/screenshots/`.
 - For 26.3, add `-Pminecraft_version=26.3 -Pfabric_api_version=0.162.0+26.3 -Pneoforge_version=26.3.0.77` to any of these.
 
-`./gradlew test` runs the unit tests (the dusk and storm rules, the countdown to dark and reading the time from the sun) in `common` and again on NeoForge's classes; `build` runs them too.
+- `node tools/paper-server-test.js <folder> --plugin paper/build/libs/nightfallclock-paper-<version>.jar --eula`: downloads a Paper 26.3 server into the folder once and starts it with the plugin on a fresh flat world, no window. Through `/clock selftest` it checks the clock's reading at noon, 7:00 AM, midnight and 6:00 PM, the countdown at 6:00 PM (59 s), 6:42 PM (24 s) and 7:06 PM (4 s, still gold), none once it's dark, the day number, dusk arriving as the day runs (and not when the time jumps past it), thunder arriving with no countdown while it lasts, the Overworld's time in the Nether, and no plugin warnings. `--no-countdown` is the proof run (the countdown checks fail). `--eula` is Gabby's acceptance of the server EULA. About 40 seconds once the jar is there.
 
-CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs both loaders' game tests on each. Only the 26.2 jars are uploaded as release artifacts. Each loader's jar is what players get for both versions.
+`./gradlew test` runs the unit tests (the dusk and storm rules, the countdown to dark and reading the time from the sun) in `common` and again on NeoForge's classes, and the plugin's own (the time from the day's ticks, the countdown, the line's words, the watches) in `paper`; `build` runs them too.
+
+CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs both loaders' game tests on each, and the Paper server test once (the plugin doesn't depend on the mod's Minecraft version). Only the 26.2 jars and the Paper jar are uploaded as release artifacts. Each loader's jar is what players get for both versions.
 
 ## Gotchas
 
@@ -41,13 +45,16 @@ CI (`.github/workflows/build.yml`) builds against 26.2 and 26.3 and runs both lo
 - **The Overworld's time elsewhere.** The server sends every world's clock to every player, so the Nether and the End can show the Overworld's day by sampling the day timeline's sun-angle track directly (there's no sun to read through the camera there).
 - **Mixin accessors fail hard.** If vanilla renames a field they read, the game crashes on launch. Compiling won't catch it, but the game test will. Before widening the supported versions, run the game test on the new version.
 - **Copied vanilla values.** The sun easing (`timeline/day.json`, `minecraft:visual/sun_angle`, angle 0 at tick 6000, noon) and the text positions (item name 59 above the bottom, action bar 72, chat 40) are copied from vanilla. Check them when adding a Minecraft version. All of them were the same in 26.2 and 26.3.
+- **The Paper plugin can't see the sun.** The Paper API has no timelines or environment attributes, so the plugin reads the world's day ticks and applies vanilla's own numbers (noon at tick 6000, the sky light falling from tick 11867 to 13670, monsters from 7 of 15 at about tick 13178): `DayClock` names them. On a Paper server that is the same clock, since a plugin can't change the day's length; a datapack that does would put it off, unlike the mod. The countdown assumes 20 ticks a second and clear weather; a plugin can't read how far the rain has darkened the sky.
+- **A Windows console mangles the middle dot.** Paper's console writes in the console's code page, so "Day 1 · 6:00 PM" came out with U+FFFD and the test's parser found nothing. The test starts java with `-Dstdout.encoding=UTF-8` (and `file.encoding`, `stderr.encoding`).
+- **A plugin's reply to the console is a plain `[INFO]:` line**, not `System chat:`, so a test waits for the reply's own prefix (`Nightfall Clock selftest:`). `execute in minecraft:the_nether run clock selftest` makes the console "stand" in the Nether.
 - **Restricted networks.** Builds need `maven.terraformersmc.com` (Mod Menu), `maven.fabricmc.net`, Maven Central and Mojang's servers. Running the game also needs `resources.download.minecraft.net` for assets. On a network that blocks the Mod Menu server, a local stub of its two API interfaces (`ConfigScreenFactory`, `ModMenuApi`), added through a Gradle init script, is enough to compile. Don't commit it.
 
 ## Conventions
 
 - Tabs for indentation. Imports are in alphabetical order (`com`, `java`, `net`, `org`).
 - Comments explain why, in plain sentences, and name the vanilla source of any copied value.
-- Every string players see goes in `assets/nightfallclock/lang/en_us.json`.
+- Every string players see goes in `assets/nightfallclock/lang/en_us.json`. The Paper plugin has no lang file: its words live in `DayClock` and `ClockCommand`, and the clock line and the two warnings must stay word-for-word the mod's.
 - Format numbers with `Locale.ROOT` so digits match the game's.
 - Log messages start with "Nightfall Clock:".
 - The README and CHANGELOG are written for players: plain and friendly, no jargon. Add player-facing changes under `## Unreleased` at the top of `CHANGELOG.md` (start that heading again after a release is numbered).

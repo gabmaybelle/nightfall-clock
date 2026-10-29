@@ -17,5 +17,6 @@ rootProject.name = 'nightfallclock'
 
 // `common` holds everything that doesn't care which loader it runs on. `fabric` and `neoforge`
 // compile those sources straight into their own jars (see their build.gradle), so there is one
-// codebase and two mod files.
-include 'common', 'fabric', 'neoforge'
+// codebase and two mod files. `paper` is the server plugin for Paper servers: it uses only the
+// Paper API, never `common`, and keeps its own plain-Java copy of the clock's rules.
+include 'common', 'fabric', 'neoforge', 'paper'

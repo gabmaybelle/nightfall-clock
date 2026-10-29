@@ -56,6 +56,14 @@ jobs:
           SDL_VIDEO_FORCE_EGL: '1'
         timeout-minutes: 12
         run: xvfb-run -a ./gradlew :neoforge:runClientTest ${{ matrix.gradle_args }}
+      - name: run Paper server test
+        # The Paper plugin (paper/) on a real Paper server: no window, so no virtual display
+        # needed. Checks what the clock reads at several times of day, the countdown to dark,
+        # dusk and thunder arriving, and the Overworld's time in the Nether. The plugin doesn't
+        # depend on the Minecraft version the mod is built against, so it runs once.
+        if: always() && matrix.minecraft == '26.2'
+        timeout-minutes: 10
+        run: node tools/paper-server-test.js paper/run --plugin "$(ls paper/build/libs/nightfallclock-paper-*.jar | grep -v sources)" --eula
       - name: capture game test screenshots
         if: always()
         uses: actions/upload-artifact@v7
@@ -74,3 +82,4 @@ jobs:
           path: |
             fabric/build/libs/
             neoforge/build/libs/
+            paper/build/libs/

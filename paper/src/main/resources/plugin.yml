@@ -1,0 +1,14 @@
+name: NightfallClock
+version: ${version}
+main: com.gabbymaybelle.nightfallclock.paper.NightfallClockPlugin
+description: A day counter and clock in the action bar, "The sun's getting real low" at 6:00 PM with a countdown to dark, and a warning when a storm rolls in.
+author: Gabby
+website: https://github.com/gabmaybelle/nightfall-clock
+api-version: '26.3'
+permissions:
+  nightfallclock.clock:
+    description: Turn your clock on or off and pick 12- or 24-hour time with /clock
+    default: true
+  nightfallclock.selftest:
+    description: Print what the clock would show right now with /clock selftest
+    default: op
