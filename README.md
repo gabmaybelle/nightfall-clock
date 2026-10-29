@@ -1,6 +1,6 @@
 # Nightfall Clock
 
-A HUD clock that warns you before nightfall. The day and time sit just above your hotbar, and an hour before dark it tells you: "The sun's getting real low".
+A clock that tells you what tonight brings. The day and time sit just above your hotbar, and at 6 PM it tells you "The sun's getting real low", then counts down to dark in real seconds. It warns you when a storm lets monsters out by day, and in the Nether and the End it shows the Overworld's time, so night never catches you far from home.
 
 Client-side, for Fabric and NeoForge on Minecraft 26.2, 26.3 and 1.21.1, and Fabric and Forge on 1.20.1. Download it from [CurseForge](https://www.curseforge.com/minecraft/mc-mods/nightfall-clock), or [watch it in 20 seconds](https://youtube.com/shorts/1PF-1B3eXoY).
 
