@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **Nightfall Clock for Paper servers.** A new `paper` file is a plugin for Paper 26.3: drop it in the server's `plugins` folder and every player gets the clock, with nothing to install. It shows the day and time in the action bar ("Day 4 · 2:35 PM", gold from 6:00 PM until dark), counts down to dark after 6:00 PM ("dark in 24s"), shows "The sun's getting real low" as a title at 6:00 PM and "Storm's rolling in" when thunder starts, and shows the Overworld's time in the Nether and the End. `/clock` turns your clock off or on, and `/clock 12` or `/clock 24` picks your time format; the server remembers your choice. Settings are in `plugins/NightfallClock/config.yml`. The clock's position and the settings screen are mod-only, and a player who also runs the mod sees both clocks.
 

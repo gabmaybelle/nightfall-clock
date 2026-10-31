@@ -65,7 +65,9 @@ The `paper` file is a plugin for [Paper](https://papermc.io/) 26.3 (Java 25). Dr
 - Fabric: Fabric Loader 0.19.5 or newer and [Fabric API](https://modrinth.com/mod/fabric-api). Optional: [Mod Menu](https://modrinth.com/mod/modmenu), for the settings screen.
 - NeoForge: NeoForge 26.2 or newer. Nothing else; the settings are on the Mods screen's Config button.
 
-Pick the `fabric` or `neoforge` file for your loader, or the `paper` file for a Paper server.
+Pick the `fabric` or `neoforge` file for your loader.
+
+**Paper servers:** the `paper` file is a plugin for [Paper](https://papermc.io/) 26.3 (Java 25). Drop it in the server's `plugins` folder; players need nothing installed. It does everything above except the position setting and the settings screen (use `/clock` and the config file). See "On a Paper server" above.
 
 **Other versions:** Minecraft 1.21.1, on Fabric and on NeoForge, is on the [`1.21.1` branch](https://github.com/gabmaybelle/nightfall-clock/tree/1.21.1), with its download on the [1.21.1 release page](https://github.com/gabmaybelle/nightfall-clock/releases/tag/v0.2.1%2B1.21.1). Minecraft 1.20.1, on Fabric and on Forge, is on the [`1.20.1` branch](https://github.com/gabmaybelle/nightfall-clock/tree/1.20.1), with its download on the [1.20.1 release page](https://github.com/gabmaybelle/nightfall-clock/releases/tag/v0.2.1%2B1.20.1).
 
