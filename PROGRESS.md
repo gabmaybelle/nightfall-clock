@@ -10,7 +10,7 @@ Release numbers and what's released: GitHub releases.
 
 - **Done:** Fabric and NeoForge on 26.2 and 26.3: the clock above the hotbar, read from the sun (the same way the sky does); the dusk warning; the countdown to dark after 6:00 PM; "Storm's rolling in" when thunder starts; the Overworld's time in the Nether and the End; text backgrounds in the corners; 12-hour time where the region writes it that way; no false warning on server networks; the icon in NeoForge's Mods list. Unit tests and an in-game test for both jars on 26.2 and 26.3, run by CI on every push. A Paper 26.3 server plugin with the same clock in the action bar, the dusk and storm titles, the countdown, the Overworld's time elsewhere and `/clock`, with unit tests and a headless server test, played by hand on a real server.
 - **Broken:** Nothing known as of this writing.
-- **Next:** Moon phase and a "you can sleep now" cue are Gabby's picks for the next release. Later for the Paper plugin: a message the mod listens for, so a player who runs both sees one clock. The October 2026 review plan in CLAUDE.md lists what else is open.
+- **Next:** nothing planned. New features are shelved (Gabby, 2026-11-02: "it does enough for now"); the moon phase and a "you can sleep now" cue, her earlier picks, wait unless she brings them back. Bug fixes still go out. Later for the Paper plugin, if asked: a message the mod listens for, so a player who runs both sees one clock. The October 2026 review plan in CLAUDE.md lists what else is open.
 
 ## Log
 
